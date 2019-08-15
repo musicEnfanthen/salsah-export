@@ -46,6 +46,25 @@ class Salsah:
         self.user = user
         self.password = password
 
+    def get_project(self, project: str, shortcode: str) -> dict:
+        req = requests.get(self.server + '/api/projects/' + project, auth=(self.user, self.password))
+        result = req.json()
+        if result['status'] != 0:
+            raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
+        else:
+            if shortname != result['shortname']:
+                raise SalsahError("EXPORT-ERROR:\nInconsistent shortname!")
+            project_info = {
+                'shortcode': shortcode,
+                'shortname': result['shortname'],
+                'longname': result['longname'],
+                'descriptions': {
+                    'en': result['description']
+                },
+                'keywords': result['keywords'] if len(result['keywords']) > 0 else []
+            }
+
+
     def get_vocabularies(self, project: str):
         print(self.server + '/api/vocabularies/' + project)
         req = requests.get(self.server + '/api/vocabularies/' + project, auth=(self.user, self.password))
@@ -111,6 +130,11 @@ class Salsah:
             print('res_id=', res_id)
             return result
 
+class JsonBuilder:
+
+    def __init__(self, filename) -> None:
+        super().__init__()
+        self.filename = filename
 
 class XmlBuilder:
 
