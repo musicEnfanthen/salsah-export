@@ -277,12 +277,13 @@ class Salsah:
                     knora_object = 'DateValue'
                 elif property['vt_php_constant'] == 'VALTYPE_RESPTR':
                     knora_super = ['hasLinkTo']
-                    attributes = property['attributes'].split(';')
                     knora_object = None
                     if attrdict.get('restypeid') is None:
+                        pprint(property)
                         raise SalsahError("SALSAH-ERROR:\n\"Attribute \"restypeid\" not existing!")
                     else:
                         if salsah_restype_info.get(attrdict['restypeid']) is None:
+                            pprint(property)
                             raise SalsahError("SALSAH-ERROR:\n\"restypeid\" is missing!")
                         knora_object = salsah_restype_info[attrdict['restypeid']]['name']
                     if knora_object is None:
@@ -850,8 +851,6 @@ proj = con.get_project(project, '0804', session)
 # proj['project']['ontology'].update({'resources': con.get_resourcetypes_of_vocabulary(proj['project']['shortname'], session)})
 
 con.write_json(j_outfile_path, proj)
-exit(0)
-
 
 (nhits, res_ids) = con.get_all_obj_ids(project, session, start, nrows)
 print("nhits=", nhits)
