@@ -15,6 +15,11 @@ import sys
 
 requests.urllib3.disable_warnings(requests.urllib3.exceptions.InsecureRequestWarning)
 
+#
+# MySQL access to old salsah
+#
+# https://phpmyadmin.sw-zh-dasch-prod-02.prod.dasch.swiss
+#
 
 Valtype = {
     '1': 'text',
@@ -98,10 +103,12 @@ etags = {
 }
 
 
-def process_richtext(utf8str: str, textattr: str = None, resptrs: list = []) -> str:
+def process_richtext(utf8str: str, textattr: str = None, resptrs: list = []) -> (str, str):
 
     if textattr is not None:
         attributes = json.loads(textattr)
+        if len(attributes) == 0:
+            return ('utf8', utf8str)
         attrlist = []
         result = ''
         for key, vals in attributes.items():
@@ -152,9 +159,9 @@ def process_richtext(utf8str: str, textattr: str = None, resptrs: list = []) -> 
                     result += stags[tmp['tagname']]
                     stack.append(tmp)
             pos = attr['pos']
-        return base64.b64encode(result.encode())
+        return ('hex64', base64.b64encode(result.encode()))
     else:
-        return base64.b64encode(utf8str.encode())
+        return ('utf8', utf8str)
 
 
 
@@ -210,7 +217,18 @@ class Salsah:
         self.hlist_node_mapping: Dict[str, str] = {}
         self.vocabulary: str = ""
 
-        self.root = etree.Element('salsah');
+        """
+        <knora vocabulary="incunabula" 
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+            xsi:noNamespaceSchemaLocation="../knora-data-schema.xsd">
+        """
+        xsi_namespace = "http://www.w3.org/2001/XMLSchema-instance"
+        nsmap = {
+            'xsi': xsi_namespace,
+        }
+        attr_qname = etree.QName("http://www.w3.org/2001/XMLSchema-instance", "noNameSpaceSchemaLocation")
+        self.root = etree.Element('knora', nsmap=nsmap)
+        self.root.set(attr_qname, "../knora-data-schema.xsd")
         self.mime = magic.Magic(mime=True)
         self.session = session
 
@@ -786,95 +804,124 @@ class Salsah:
         f.close()
 
     def process_value(self, valtype: int, value: any, comment: str = None):
-        if comment is None:
-            valele = etree.Element('value')
-        else:
-            valele = etree.Element('value', {'comment': comment})
-
+        valele = None
         if valtype == ValtypeMap.TEXT.value:
-            valele.text = value
-            valele.set('encoding', 'utf8')
+            if value:
+                valele = etree.Element('text')
+                valele.text = value
+                valele.set('encoding', 'utf8')
         elif valtype == ValtypeMap.RICHTEXT.value:
-            resptrs = value['resource_reference']
-            valele.text = process_richtext(
-                utf8str=value.get('utf8str').strip(),
-                textattr=value.get('textattr').strip(),
-                resptrs=value.get('resptrs'))
-            resrefs = '|'.join(value['resource_reference'])
-            valele.set('resrefs', resrefs)
-            valele.set('encoding', 'hex64')
+            if value.get('utf8str').strip():
+                print("'richtext: {}".format(value.get('utf8str').strip()))
+                valele = etree.Element('text')
+                resptrs = value['resource_reference']
+                encoding, valele.text = process_richtext(
+                    utf8str=value.get('utf8str').strip(),
+                    textattr=value.get('textattr').strip(),
+                    resptrs=value.get('resptrs'))
+                resrefs = '|'.join(value['resource_reference'])
+                if len(resrefs) > 0:
+                    valele.set('resrefs', resrefs)
+                valele.set('encoding', encoding)
         elif valtype == ValtypeMap.COLOR.value:
-            valele.text = value
+            if value:
+                valele = etree.Element('color')
+                valele.text = value
         elif valtype == ValtypeMap.DATE.value:
-            cal: str
-            start: Tuple[int, int, int, float]
-            end: Tuple[int, int, int, float]
-            if value['calendar'] == 'GREGORIAN':
-                cal = 'GREGORIAN'
-                start = jdcal.jd2gcal(float(value['dateval1']), 0.0)
-                end = jdcal.jd2gcal(float(value['dateval2']), 0.0)
-            else:
-                cal = 'JULIAN'
-                start = jdcal.jd2jcal(float(value['dateval1']), 0.0)
-                end = jdcal.jd2jcal(float(value['dateval2']), 0.0)
-            p1: str = 'CE'
-            if start[0] <= 0:
-                start[0] = start[0] - 1
-                p1 = 'BCE'
+            if value:
+                valele = etree.Element('date')
+                cal: str
+                start: Tuple[int, int, int, float]
+                end: Tuple[int, int, int, float]
+                if value['calendar'] == 'GREGORIAN':
+                    cal = 'GREGORIAN'
+                    start = jdcal.jd2gcal(float(value['dateval1']), 0.0)
+                    end = jdcal.jd2gcal(float(value['dateval2']), 0.0)
+                else:
+                    cal = 'JULIAN'
+                    start = jdcal.jd2jcal(float(value['dateval1']), 0.0)
+                    end = jdcal.jd2jcal(float(value['dateval2']), 0.0)
+                p1: str = 'CE'
+                if start[0] <= 0:
+                    start[0] = start[0] - 1
+                    p1 = 'BCE'
 
-            p2: str = 'CE'
-            if end[0] <= 0:
-                end[0] = end[0] - 1
-                p2 = 'BCE'
+                p2: str = 'CE'
+                if end[0] <= 0:
+                    end[0] = end[0] - 1
+                    p2 = 'BCE'
 
-            startstr: str = ""
-            endstr: str = ""
+                startstr: str = ""
+                endstr: str = ""
 
-            if value['dateprecision1'] == 'YEAR':
-                startstr = "{}:{}:{:04d}".format(cal, p1, start[0])
-            elif value['dateprecision1'] == 'MONTH':
-                startstr = "{}:{}:{:04d}-{:02d}".format(cal, p1, start[0], start[1])
-            else:
-                startstr = "{}:{}:{:04d}-{:02d}-{:02d}".format(cal, p1, start[0], start[1], start[2])
+                if value['dateprecision1'] == 'YEAR':
+                    startstr = "{}:{}:{:04d}".format(cal, p1, start[0])
+                elif value['dateprecision1'] == 'MONTH':
+                    startstr = "{}:{}:{:04d}-{:02d}".format(cal, p1, start[0], start[1])
+                else:
+                    startstr = "{}:{}:{:04d}-{:02d}-{:02d}".format(cal, p1, start[0], start[1], start[2])
 
-            if value['dateprecision2'] == 'YEAR':
-                if start[0] != end[0]:
-                    endstr = ":{}:{:04d}".format(p2, end[0])
-            elif value['dateprecision2'] == 'MONTH':
-                if start[0] != end[0] or start[1] != end[1]:
-                    endstr = ":{}:{:04d}-{:02d}".format(p2, end[0], end[1])
-            else:
-                if start[0] != end[0] or start[1] != end[1] or start[2] != end[2]:
-                    endstr = ":{}:{:04d}-{:02d}-{:02d}".format(p2, end[0], end[1], end[2])
+                if value['dateprecision2'] == 'YEAR':
+                    if start[0] != end[0]:
+                        endstr = ":{}:{:04d}".format(p2, end[0])
+                elif value['dateprecision2'] == 'MONTH':
+                    if start[0] != end[0] or start[1] != end[1]:
+                        endstr = ":{}:{:04d}-{:02d}".format(p2, end[0], end[1])
+                else:
+                    if start[0] != end[0] or start[1] != end[1] or start[2] != end[2]:
+                        endstr = ":{}:{:04d}-{:02d}-{:02d}".format(p2, end[0], end[1], end[2])
 
-            valele.text = startstr + endstr
+                valele.text = startstr + endstr
         elif valtype == ValtypeMap.FLOAT.value:
-            valele.text = value
+            if value:
+                valele = etree.Element('float')
+                valele.text = value
         elif valtype == ValtypeMap.GEOMETRY.value:
-            valele.text = value
+            if value:
+                valele = etree.Element('geometry')
+                valele.text = value
         elif valtype == ValtypeMap.GEONAME.value:
-            valele.text = value
+            if value:
+                valele = etree.Element('geoname')
+                valele.text = value
         elif valtype ==ValtypeMap.HLIST.value:
-            valele.text = 'H_' + value
-            pass
+            if value:
+                valele = etree.Element('list')
+                valele.text = 'H_' + value
         elif valtype == ValtypeMap.ICONCLASS.value:
-            valele.text = value
+            if value:
+                valele = etree.Element('iconclass')
+                valele.text = value
         elif valtype == ValtypeMap.INTEGER.value:
-            valele.text = value
+            if value:
+                valele = etree.Element('integer')
+                valele.text = value
         elif valtype == ValtypeMap.INTERVAL.value:
-            valele.text = value
+            if value:
+                valele = etree.Element('interval')
+                valele.text = value
         elif valtype == ValtypeMap.PERIOD.value:
+            valele = etree.Element('period')
             pass
         elif valtype ==ValtypeMap.RESPTR.value:
-            valele.text = value
+            if value:
+                valele = etree.Element('resptr')
+                valele.text = value
         elif valtype == ValtypeMap.SELECTION.value:
-            valele.text = 'S_' + value
+            if value:
+                valele = etree.Element('list')
+                valele.text = 'S_' + value
         elif valtype == ValtypeMap.TIME.value:
-            valele.text = value
+            if value:
+                valele = etree.Element('time')
+                valele.text = value
         else:
             print('===========================')
             pprint(value)
             print('----------------------------')
+        if comment is not None:
+            print('Comment: ' + comment)
+            valele.set('comment', comment)
         return valele                                                               # Das geht in die Resourcen
 
     def process_property(self, propname: str, property: Dict):
@@ -897,25 +944,41 @@ class Salsah:
             else:
                 propname_new = propname
             options: Dict[str, str] = {
-                'name': propname_new,
-                'type': Valtype.get(property["valuetype_id"])
+                'name': propname_new
             }
             if int(property["valuetype_id"]) == ValtypeMap.SELECTION.value:
-                (dummy, sel_id) = property['attributes'].split("=")
-                options['selection'] = self.selection_mapping[sel_id]
+                (dummy, list_id) = property['attributes'].split("=")
+                options['list'] = self.selection_mapping[list_id]
             elif int(property["valuetype_id"]) == ValtypeMap.HLIST.value:
-                (dummy, hlist_id) = property['attributes'].split("=")
-                options['hlist'] = self.hlist_mapping[hlist_id]
-            propnode = etree.Element('property', options)
+                (dummy, list_id) = property['attributes'].split("=")
+                options['list'] = self.hlist_mapping[list_id]
+
+            pname: str = None
+            if Valtype.get(property["valuetype_id"]) == 'richtext':
+                pname = 'text-prop'
+            elif Valtype.get(property["valuetype_id"]) == 'hlist':
+                pname = 'list-prop'
+            elif Valtype.get(property["valuetype_id"]) == 'selection':
+                pname = 'list-prop'
+            else:
+                pname = Valtype.get(property["valuetype_id"]) + '-prop'
+            propnode = etree.Element(pname, options)
             cnt: int = 0
             for value in property["values"]:
                 if property['comments'][cnt]:
-                    propnode.append(self.process_value(int(property["valuetype_id"]), value, property['comments'][cnt]))
-                    pass
+                    valnode = self.process_value(int(property["valuetype_id"]), value, property['comments'][cnt])
+                    if valnode is not Non:
+                        propnode.append(valnode)
+                        cnt += 1
                 else:
-                    propnode.append(self.process_value(int(property["valuetype_id"]), value))
-                cnt += 1
-            return propnode
+                    valnode = self.process_value(int(property["valuetype_id"]), value)
+                    if valnode is not None:
+                        propnode.append(valnode)
+                        cnt += 1
+            if cnt > 0:
+                return propnode
+            else:
+                return None
         else:
             return None
 
