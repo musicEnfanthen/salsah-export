@@ -185,6 +185,7 @@ class Salsah:
             user: str,
             password: str,
             filename: str,
+            assets_path: str,
             projectname: str,
             shortcode: str,
             resptrs: dict,
@@ -204,29 +205,25 @@ class Salsah:
         self.server: str = server
         self.user: str = user
         self.password: str = password
-        self.filename = filename
-        self.projectname = projectname
-        self.shortcode = shortcode
-        self.resptrs = resptrs
+        self.filename: str = filename
+        self.assets_path: str = assets_path
+        self.projectname: str = projectname
+        self.shortcode: str = shortcode
+        self.resptrs: List[str] = resptrs
         self.session: requests.Session = session
 
         self.mime = magic.Magic(mime=True)
-        self.selection_mapping: Dict[str,str] = {}
+        self.selection_mapping: Dict[str, str] = {}
         self.selection_node_mapping: Dict[str, str] = {}
         self.hlist_mapping: Dict[str, str] = {}
         self.hlist_node_mapping: Dict[str, str] = {}
         self.vocabulary: str = ""
 
-        """
-        <knora vocabulary="incunabula" 
-            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-            xsi:noNamespaceSchemaLocation="../knora-data-schema.xsd">
-        """
         xsi_namespace = "http://www.w3.org/2001/XMLSchema-instance"
         nsmap = {
             'xsi': xsi_namespace,
         }
-        attr_qname = etree.QName("http://www.w3.org/2001/XMLSchema-instance", "noNameSpaceSchemaLocation")
+        attr_qname = etree.QName("http://www.w3.org/2001/XMLSchema-instance", "schemaLocation")
         self.root = etree.Element('knora', nsmap=nsmap)
         self.root.set(attr_qname, "../knora-data-schema.xsd")
         self.mime = magic.Magic(mime=True)
@@ -239,8 +236,8 @@ class Salsah:
         :param name: nameof the icon
         :return: Path to the icon on local disk
         """
-        iconpath: str = os.path.join(assets_path, name)
-        dlfile: str = session.get(iconsrc, stream=True)  # war urlretrieve()
+        iconpath: str = os.path.join(self.assets_path, name)
+        dlfile: str = self.session.get(iconsrc, stream=True)  # war urlretrieve()
         with open(iconpath, 'w+b') as fd:
             for chunk in dlfile.iter_content(chunk_size=128):
                 fd.write(chunk)
@@ -648,7 +645,7 @@ class Salsah:
                 comments = dict(map(lambda a: (a['shortname'], a['description']), restype_info['description']))
                 restype['comments'] = comments
 
-            # if restype_info.get('iconsrc') is not None:
+            #if restype_info.get('iconsrc') is not None:
             #     restype['iconsrc'] = self.get_icon(restype_info['iconsrc'], restype_info['name'])
 
             restype['properties'] = self.get_properties_of_resourcetype(vocname, restype_id, salsah_restype_info)
@@ -1057,8 +1054,6 @@ def program(args):
     nrows = -1 if args.nrows is None else args.nrows
     project = args.project
 
-    # page@salsah:partof=book;…
-
     resptrs: dict = {}
     if args.resptrs_file is not None:
         tree = etree.parse(args.resptrs_file)
@@ -1095,7 +1090,8 @@ def program(args):
     session.verify = False                      # Works...
 
     con = Salsah(server=args.server, user=user, password=password, filename=outfile_path,
-                projectname=args.project, shortcode=args.shortcode, resptrs=resptrs, session=session)
+                 assets_path=assets_path, projectname=args.project, shortcode=args.shortcode,
+                 resptrs=resptrs, session=session)
     proj = con.get_project()
     # proj['project']['ontology'].update({'resources': con.get_resourcetypes_of_vocabulary(proj['project']['shortname'], session)})
 

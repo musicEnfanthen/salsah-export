@@ -5,6 +5,7 @@ import knora
 from lxml import etree
 import argparse
 from pprint import pprint
+import request
 
 class KnoraValue:
     value: str
@@ -114,41 +115,57 @@ class KnoraResource:
         }
         return resource
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-s", "--server", type=str, default="http://0.0.0.0:3333", help="URL of the Knora server")
-parser.add_argument("-S", "--sipi", type=str, default="http://0.0.0.0:1024", help="URL of SIPI server")
-parser.add_argument("-u", "--user", default="root@example.com", help="Username for Knora")
-parser.add_argument("-p", "--password", default="test", help="The password for login")
-parser.add_argument("-P", "--projectcode", default="00FE", help="Project short code")
-parser.add_argument("-O", "--ontoname", default="kpt", help="Shortname of ontology")
-parser.add_argument("-i", "--inproject", help="Shortname or SALSAH input project")
-parser.add_argument("-F", "--folder", default="-", help="Input folder")
-parser.add_argument("-v", "--verbose", action="store_true", help="Verbose feedback")
+def program(args):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-s", "--server", type=str, default="http://0.0.0.0:3333", help="URL of the Knora server")
+    parser.add_argument("-S", "--sipi", type=str, default="http://0.0.0.0:1024", help="URL of SIPI server")
+    parser.add_argument("-u", "--user", default="root@example.com", help="Username for Knora")
+    parser.add_argument("-p", "--password", default="test", help="The password for login")
+    parser.add_argument("-P", "--projectcode", default="00FE", help="Project short code")
+    parser.add_argument("-O", "--ontoname", default="kpt", help="Shortname of ontology")
+    parser.add_argument("-i", "--inproject", help="Shortname or SALSAH input project")
+    parser.add_argument("-F", "--folder", default="-", help="Input folder")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose feedback")
 
-args = parser.parse_args()
+    args = parser.parse_args()
 
-if args.folder == '-':
-    folder = args.inproject + ".dir"
-else:
-    folder = args.folder
+    if args.folder == '-':
+        folder = args.inproject + ".dir"
+    else:
+        folder = args.folder
 
-assets_path = os.path.join(folder, 'assets')
-images_path = os.path.join(folder, 'images')
-infile_path = os.path.join(folder, args.inproject) + '.xml'
+    assets_path = os.path.join(folder, 'assets')
+    images_path = os.path.join(folder, 'images')
+    infile_path = os.path.join(folder, args.inproject) + '.xml'
 
-context = etree.iterparse(infile_path, events=("start", "end"))
-while True:
-    event, node = context.next()
-    print("event: {} tag: {}".format(event, node.tag))
-exit(0)
+    projectcode = None
+    if args.projectcode == "XXXX":
+        r = requests.get('https://raw.githubusercontent.com/dhlab-basel/dasch-ark-resolver-data/master/data/shortcodes.csv')
+        lines = r.text.split('\r\n')
+        for line in lines:
+            parts = line.split(',')
+            if len(parts) > 1 and parts[1] == args.inproject:
+                projectcode = parts[0]
+                print('Found code "{}" for project "{}"!'.format(projectcode, parts[1]))
+    else:
+        projectcode = args.projectcode
+    if projectcode is None:
+        print("No valid project code!")
+        exit(3)
 
-#xml_root = xml_doc.documentElement
+    context = etree.iterparse(infile_path, events=("start", "end"))
+    while True:
+        event, node = context.next()
+        print("event: {} tag: {}".format(event, node.tag))
+    exit(0)
 
-resources: List[KnoraResource] = []
-for node in xml_root.childNodes:
-    if node.nodeType == Node.ELEMENT_NODE and node.nodeName == 'resource':
-        resources.append(KnoraResource.process(node))
+    #xml_root = xml_doc.documentElement
 
-for r in resources:
-    pprint(r.get_it())
+    resources: List[KnoraResource] = []
+    for node in xml_root.childNodes:
+        if node.nodeType == Node.ELEMENT_NODE and node.nodeName == 'resource':
+            resources.append(KnoraResource.process(node))
+
+    for r in resources:
+        pprint(r.get_it())
 
