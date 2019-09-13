@@ -12,6 +12,7 @@ import json
 import jdcal
 import shutil
 import sys
+import request
 
 requests.urllib3.disable_warnings(requests.urllib3.exceptions.InsecureRequestWarning)
 
@@ -226,6 +227,7 @@ class Salsah:
         attr_qname = etree.QName("http://www.w3.org/2001/XMLSchema-instance", "schemaLocation")
         self.root = etree.Element('knora', nsmap=nsmap)
         self.root.set(attr_qname, "../knora-data-schema.xsd")
+        self.root.set('shortcode', self.shortcode)
         self.mime = magic.Magic(mime=True)
         self.session = session
 
@@ -1033,8 +1035,8 @@ def program(args):
     parser.add_argument("server", help="URL of the SALSAH server")
     parser.add_argument("-u", "--user", help="Username for SALSAH")
     parser.add_argument("-p", "--password", help="The password for login")
-    parser.add_argument("-P", "--project", help="Shortname or ID of project")
-    parser.add_argument("-s", "--shortcode", help="Knora-shortcode  of project")
+    parser.add_argument("-P", "--project", required=True help="Shortname or ID of project")
+    parser.add_argument("-s", "--shortcode", default='XXXX', help="Knora-shortcode of project")
     parser.add_argument("-n", "--nrows", type=int, help="number of records to get, -1 to get all")
     parser.add_argument("-S", "--start", type=int, help="Start at record with given number")
     parser.add_argument("-F", "--folder", default="-", help="Output folder")
@@ -1044,7 +1046,22 @@ def program(args):
 
     args = parser.parse_args()
 
-    if args.shortcode is None:
+    #
+    # here we fetch the shortcodes from the github repository
+    #
+    shortcode = None
+    if args.shortcode == "XXXX":
+        r = requests.get('https://raw.githubusercontent.com/dhlab-basel/dasch-ark-resolver-data/master/data/shortcodes.csv')
+        lines = r.text.split('\r\n')
+        for line in lines:
+            parts = line.split(',')
+            if len(parts) > 1 and parts[1] == args.project:
+                shortcode = parts[0]
+                print('Found Knora project shortcode "{}" for "{}"!'.format(shortcode, parts[1]))
+    else:
+        shortcode = args.shortcode
+
+    if shortcode is None:
         print("You must give a shortcode (\"--shortcode XXXX\")!")
         exit(1)
 
@@ -1090,7 +1107,7 @@ def program(args):
     session.verify = False                      # Works...
 
     con = Salsah(server=args.server, user=user, password=password, filename=outfile_path,
-                 assets_path=assets_path, projectname=args.project, shortcode=args.shortcode,
+                 assets_path=assets_path, projectname=args.project, shortcode=shortcode,
                  resptrs=resptrs, session=session)
     proj = con.get_project()
     # proj['project']['ontology'].update({'resources': con.get_resourcetypes_of_vocabulary(proj['project']['shortname'], session)})

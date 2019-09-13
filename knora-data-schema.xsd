@@ -159,6 +159,24 @@
         </xs:simpleContent>
     </xs:complexType>
         
+    <!-- uri value type -->
+    <xs:complexType name="uri_type">
+        <xs:simpleContent>
+            <xs:extension base="xs:anyURI">
+                <xs:attribute name="comment" type="xs:string"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <!-- boolean value type -->
+    <xs:complexType name="boolean_type">
+        <xs:simpleContent>
+            <xs:extension base="xs:boolean">
+                <xs:attribute name="comment" type="xs:string"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+    
     <!-- textprop_type -->
     <xs:complexType name="textprop_type">
         <xs:sequence>
@@ -264,6 +282,22 @@
         <xs:attribute name="name" type="xs:string" use="required"/>
     </xs:complexType>
     
+    <!-- uriprop_type -->
+    <xs:complexType name="uriprop_type">
+        <xs:sequence>
+            <xs:element name="time" type="uri_type" minOccurs="1" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute name="name" type="xs:string" use="required"/>
+    </xs:complexType>
+    
+    <!-- booleanprop_type -->
+    <xs:complexType name="booleanprop_type">
+        <xs:sequence>
+            <xs:element name="time" type="boolean_type" minOccurs="1" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute name="name" type="xs:string" use="required"/>
+    </xs:complexType>
+    
     <!-- image tag -->
     <xs:complexType name="image_type">
         <xs:simpleContent>
@@ -288,11 +322,20 @@
             <xs:element name="period-prop" type="periodprop_type" minOccurs="0" maxOccurs="unbounded"/>
             <xs:element name="resptr-prop" type="resptrprop_type" minOccurs="0" maxOccurs="unbounded"/>
             <xs:element name="time-prop" type="timeprop_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element name="uri-prop" type="uriprop_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element name="boolean-prop" type="booleanprop_type" minOccurs="0" maxOccurs="unbounded"/>
         </xs:choice>
         <xs:attribute name="label" type="xs:string" use="required"/>
         <xs:attribute name="restype" type="xs:string" use="required"/>
         <xs:attribute name="unique_id" type="xs:string" use="required"/>
     </xs:complexType>
+
+    <!-- data type for knora shortcode -->
+    <xs:simpleType name="knorashortcode_type">
+        <xs:restriction base="xs:token">
+            <xs:pattern value="[0-9a-fA-F]{4}" />
+        </xs:restriction>
+    </xs:simpleType>
 
     <!-- complete document -->
     <xs:element name="knora">
@@ -301,6 +344,7 @@
                 <xs:element name="resource" type="resource_type" minOccurs="1" maxOccurs="unbounded"/>
             </xs:sequence>
             <xs:attribute name="vocabulary" type="xs:string"/>
+            <xs:attribute name="shortcode" type="knorashortcode_type"/>
         </xs:complexType>
     </xs:element>
 </xs:schema>
