@@ -472,14 +472,15 @@ class Salsah:
                     if attrdict.get('restypeid') is None:
                         tmp = self.resptrs[salsah_restype_info[restype_id]['name']]
                         if tmp.get('salsah:resource_reference') is not None:
-                            knora_object = tmp[property['vocabulary'] + ':' + property['name']]
+                            knora_object = tmp[property['vocabulary'] + ':' + property['name'].capitalize()]
                     else:
                         if salsah_restype_info.get(attrdict['restypeid']) is None:
                             tmp = self.resptrs[salsah_restype_info[restype_id]['name']]
                             if tmp.get('salsah:resource_reference') is not None:
-                                knora_object = tmp[property['vocabulary'] + ':' + property['name']]
+                                knora_object = tmp[property['vocabulary'] + ':' + property['name'].capitalize()]
                             raise SalsahError("SALSAH-ERROR:\n\"restypeid\" is missing!")
-                        knora_object = salsah_restype_info[attrdict['restypeid']]['name']
+                        (voc,restype) = salsah_restype_info[attrdict['restypeid']]['name'].split(':')
+                        knora_object = voc + ':' + restype.capitalize()
                     if knora_object is None:
                         knora_object = 'FIXME--Resource--FIXME'
                         print("WARNING: Resclass {} has resptr {} with no object!".format(salsah_restype_info[restype_id]['name'], property['name']))
@@ -931,11 +932,11 @@ class Salsah:
             # first we strip the vocabulary off, if it's not salsah, dc, etc.
             #
             tmp = propname.split(':')
-            if tmp[0] == self.vocabulary:
+            if tmp[0] == self.vocabulary or tmp[0] == 'dc':
                 propname_new = tmp[1]  # strip vocabulary
                 #
                 # if the propname does not start with "has", add  it to the propname. We have to do this
-                # to avoid naming conflicts between resourcesand  properties which share the same
+                # to avoid naming conflicts between resources and properties which share the same
                 # namespace in GraphDB
                 #
                 if not propname_new.startswith('has'):
@@ -966,7 +967,7 @@ class Salsah:
             for value in property["values"]:
                 if property['comments'][cnt]:
                     valnode = self.process_value(int(property["valuetype_id"]), value, property['comments'][cnt])
-                    if valnode is not Non:
+                    if valnode is not None:
                         propnode.append(valnode)
                         cnt += 1
                 else:
@@ -1035,7 +1036,7 @@ def program(args):
     parser.add_argument("server", help="URL of the SALSAH server")
     parser.add_argument("-u", "--user", help="Username for SALSAH")
     parser.add_argument("-p", "--password", help="The password for login")
-    parser.add_argument("-P", "--project", required=True help="Shortname or ID of project")
+    parser.add_argument("-P", "--project", help="Shortname or ID of project")
     parser.add_argument("-s", "--shortcode", default='XXXX', help="Knora-shortcode of project")
     parser.add_argument("-n", "--nrows", type=int, help="number of records to get, -1 to get all")
     parser.add_argument("-S", "--start", type=int, help="Start at record with given number")
