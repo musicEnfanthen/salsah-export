@@ -1,0 +1,5 @@
+<resptres vocabulary="incunabula">
+    <resource name="incunabula:page">
+        <property name="salsah:part_of">incunabula:book</property>
+    </resource>
+</resptres>
