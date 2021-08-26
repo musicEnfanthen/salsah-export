@@ -12,7 +12,7 @@ import json
 import jdcal
 import shutil
 import sys
-import request
+# import request
 
 requests.urllib3.disable_warnings(requests.urllib3.exceptions.InsecureRequestWarning)
 
@@ -87,7 +87,7 @@ etags = {
     'underline': '</u>',
     'italic': '</em>',
     'linebreak': '',
-    'strikethrough': '<strike>',
+    'strikethrough': '</strike>',
     'style': '</span',
     'ol': '</ol>',
     'ul': '</ul>',
@@ -105,11 +105,10 @@ etags = {
 
 
 def process_richtext(utf8str: str, textattr: str = None, resptrs: list = []) -> (str, str):
-
     if textattr is not None:
         attributes = json.loads(textattr)
         if len(attributes) == 0:
-            return ('utf8', utf8str)
+            return 'utf8', utf8str
         attrlist = []
         result = ''
         for key, vals in attributes.items():
@@ -125,10 +124,11 @@ def process_richtext(utf8str: str, textattr: str = None, resptrs: list = []) -> 
                 if val.get('style'):
                     attr['style'] = val['style']
                 attrlist.append(attr)
-                attr = {}
-                attr['tagname'] = key
-                attr['type'] = 'end'
-                attr['pos'] = val['end']
+                attr = {
+                    'tagname': key,
+                    'type': 'end',
+                    'pos': val['end']
+                }
                 attrlist.append(attr)
         attrlist = sorted(attrlist, key=lambda attr: attr['pos'])
         pos: int = 0
@@ -137,7 +137,7 @@ def process_richtext(utf8str: str, textattr: str = None, resptrs: list = []) -> 
             result += utf8str[pos:attr['pos']]
             if attr['type'] == 'start':
                 if attr['tagname'] == '_link':
-                    if attr.get('resid')is not None:
+                    if attr.get('resid') is not None:
                         result += stags[attr['tagname']][1].format(attr['resid'])
                     else:
                         result += stags[attr['tagname']][0].format(attr['href'])
@@ -160,10 +160,9 @@ def process_richtext(utf8str: str, textattr: str = None, resptrs: list = []) -> 
                     result += stags[tmp['tagname']]
                     stack.append(tmp)
             pos = attr['pos']
-        return ('hex64', base64.b64encode(result.encode()))
+        return 'hex64', base64.b64encode(result.encode())
     else:
-        return ('utf8', utf8str)
-
+        return 'utf8', utf8str
 
 
 class Richtext:
@@ -191,8 +190,8 @@ class Salsah:
             shortcode: str,
             resptrs: dict,
             session: requests.Session) -> None:
-        """
 
+        """
         :param server: Server of old SALSAH (local or http://salsah.org)
         :param user: User for login to old SALSAH server
         :param password: Password for login to old SALSAH server
@@ -279,7 +278,7 @@ class Salsah:
         #
         # get project info
         #
-        req = self.session.get(self.server + '/api/projects/' + self.projectname + "?lang=all", auth=(self.user, self.password) )
+        req = self.session.get(self.server + '/api/projects/' + self.projectname + "?lang=all", auth=(self.user, self.password))
         result = req.json()
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
@@ -292,7 +291,7 @@ class Salsah:
                 'longname': result['project_info']['longname'],
             },
         }
-        project_info = result['project_info']           # Is this the project_container??? Decide later
+        project_info = result['project_info']  # Is this the project_container??? Decide later
         project = {
             'shortcode': self.shortcode,
             'shortname': project_info['shortname'],
@@ -329,17 +328,21 @@ class Salsah:
         project['lists'] = self.get_selections_of_vocabulary(vocabulary['shortname'])
         self.root.set('vocabulary', vocabulary['shortname'])
 
-        project['ontology'] = {
-            'name': vocabulary['shortname'],
-            'label': vocabulary['longname'],
-        }
-        #
         # ToDo: not yet implemented in create_ontology
         # if vocabulary.get('description') is not None and vocabulary['description']:
-        #    project['ontology']['comment'] = vocabulary['description']
+        #    project['ontologies']['comment'] = vocabulary['description']
 
-        project['ontology']['resources'] = self.get_resourcetypes_of_vocabulary(vocabulary['shortname'])
+        prop, res = self.get_resourcetypes_of_vocabulary(vocabulary['shortname'])
+
+        project['ontologies'] = [{
+            'name': vocabulary['shortname'],
+            'label': vocabulary['longname'],
+            'properties': prop,
+            'resources': res
+        }]
+
         project_container["project"] = project
+
         return project_container
 
     def get_properties_of_resourcetype(self, vocname: str, restype_id: int, salsah_restype_info: dict) -> list:
@@ -355,7 +358,11 @@ class Salsah:
             'radio': ['selection'],
             'interval': ['duration']
         }
+
         props = []
+        cardinalities = []
+        gui_order: number = 1
+
         for property in salsah_restype_info[restype_id]['properties']:
             if property['name'] == '__location__':
                 continue
@@ -363,6 +370,7 @@ class Salsah:
                 pname = property['name']
             else:
                 pname = 'has' + property['name'].capitalize()
+
             prop = {
                 'name': pname,
                 'labels': dict(map(lambda a: (a['shortname'], a['label']), property['label'])),
@@ -371,7 +379,7 @@ class Salsah:
                 prop['comments']: dict(map(lambda a: (a['shortname'], a['label']), property['description']))
 
             #
-            # convert atributes into dict
+            # convert attributes into dict
             #
             attrdict = {}
             if property.get('attributes') is not None:
@@ -405,7 +413,8 @@ class Salsah:
                             knora_object = tmp['salsah:part_of']
                     else:
                         knora_object = 'FIXME--Resource--FIXME'
-                        print("WARNING: Resclass {} has resptr {} with no object!".format(salsah_restype_info[restype_id]['name'], property['name']))
+                        print("WARNING: Resclass {} has resptr {} with no object!!!".format(
+                            salsah_restype_info[restype_id]['name'], property['name']))
                 elif property['name'] == 'region_of':
                     knora_super = ['isRegionOf']
                     if self.resptrs.get(salsah_restype_info[restype_id]['name']) is not None:
@@ -414,7 +423,8 @@ class Salsah:
                             knora_object = tmp['salsah:part_of']
                     else:
                         knora_object = 'FIXME--Resource--FIXME'
-                        print("WARNING: Resclass {} has resptr {} with no object!".format(salsah_restype_info[restype_id]['name'], property['name']))
+                        print("WARNING: Resclass {} has resptr {} with no object!".format(
+                            salsah_restype_info[restype_id]['name'], property['name']))
                 elif property['name'] == 'resource_reference':
                     knora_super = ['hasLinkTo']
                     if self.resptrs.get(salsah_restype_info[restype_id]['name']) is not None:
@@ -423,7 +433,8 @@ class Salsah:
                             knora_object = tmp['salsah:part_of']
                     else:
                         knora_object = 'FIXME--Resource--FIXME'
-                        print("WARNING: Resclass {} has resptr {} with no object!".format(salsah_restype_info[restype_id]['name'], property['name']))
+                        print("WARNING: Resclass {} has resptr {} with no object!".format(
+                            salsah_restype_info[restype_id]['name'], property['name']))
                 elif property['name'] == 'interval':
                     knora_super = ['hasValue']
                     knora_object = 'IntervalValue'
@@ -448,7 +459,8 @@ class Salsah:
                     knora_super = ['hasValue']
                     knora_object = 'TextValue'
             elif property['vocabulary'] == 'dc':
-                knora_super = ['hasValue', 'dc:' + property['name'] if property['name'] != 'description_rt' else 'dc:description']
+                knora_super = ['hasValue',
+                               'dc:' + property['name'] if property['name'] != 'description_rt' else 'dc:description']
                 knora_object = 'TextValue'
             elif property['vocabulary'] == vocname:
                 if property['vt_php_constant'] == 'VALTYPE_TEXT':
@@ -479,11 +491,12 @@ class Salsah:
                             if tmp.get('salsah:resource_reference') is not None:
                                 knora_object = tmp[property['vocabulary'] + ':' + property['name'].capitalize()]
                             raise SalsahError("SALSAH-ERROR:\n\"restypeid\" is missing!")
-                        (voc,restype) = salsah_restype_info[attrdict['restypeid']]['name'].split(':')
+                        (voc, restype) = salsah_restype_info[attrdict['restypeid']]['name'].split(':')
                         knora_object = voc + ':' + restype.capitalize()
                     if knora_object is None:
                         knora_object = 'FIXME--Resource--FIXME'
-                        print("WARNING: Resclass {} has resptr {} with no object!".format(salsah_restype_info[restype_id]['name'], property['name']))
+                        print("WARNING: Resclass {} has resptr {} with no object!".format(
+                            salsah_restype_info[restype_id]['name'], property['name']))
                 elif property['vt_php_constant'] == 'VALTYPE_SELECTION':
                     knora_super = ['hasValue']
                     knora_object = 'ListValue'
@@ -520,34 +533,48 @@ class Salsah:
                     "SALSAH-ERROR:\n\"Invalid vocabulary used: " + property['vocabulary'] + " by property " +
                     property['name'])
 
-            gui_attributes = []
+            gui_attributes = {}
             if property['gui_name'] == 'text':
                 gui_element = 'SimpleText'
                 for attr in gui_attr_lut['text']:
                     if attrdict.get(attr):
-                        gui_attributes.append(attr + '=' + attrdict[attr])
+                        if attr == 'maxlength' or attr == 'size':
+                            gui_attributes[attr] = int(attrdict.get(attr))
+                        else:
+                            gui_attributes[attr] = attrdict.get(attr)
+                        # gui_attributes.append(attr + '=' + attrdict[attr])
             elif property['gui_name'] == 'textarea':
                 gui_element = 'Textarea'
                 for attr in gui_attr_lut['textarea']:
                     if attrdict.get(attr):
-                        gui_attributes.append(attr + '=' + attrdict[attr])
+                        if attr == 'rows' or attr == 'cols':
+                            gui_attributes[attr] = int(attrdict.get(attr))
+                        else:
+                            gui_attributes[attr] = attrdict.get(attr)
+                        # gui_attributes.append(attr + '=' + attrdict[attr])
             elif property['gui_name'] == 'pulldown':
                 gui_element = 'Pulldown'
                 for attr in gui_attr_lut['pulldown']:
                     if attrdict.get(attr) and attr == 'selection':
-                        gui_attributes.append('hlist=' + self.selection_mapping[attrdict[attr]])
+                        gui_attributes['hlist'] = self.selection_mapping[attrdict[attr]]
+                        # gui_attributes.append('hlist=' + self.selection_mapping[attrdict[attr]])
             elif property['gui_name'] == 'slider':
                 gui_element = 'Slider'
                 for attr in gui_attr_lut['slider']:
                     if attrdict.get(attr):
-                        gui_attributes.append(attr + '=' + attrdict[attr])
+                        gui_attributes[attr] = attrdict.get(attr)
+                        # gui_attributes.append(attr + '=' + attrdict[attr])
             elif property['gui_name'] == 'spinbox':
                 gui_element = 'Spinbox'
             elif property['gui_name'] == 'searchbox':
                 gui_element = 'Searchbox'
                 for attr in gui_attr_lut['searchbox']:
                     if attrdict.get(attr):
-                        gui_attributes.append(attr + '=' + attrdict[attr])
+                        if attr == 'numprops':
+                            gui_attributes[attr] = int(attrdict.get(attr))
+                        else:
+                            gui_attributes[attr] = attrdict.get(attr)
+                        # gui_attributes.append(attr + '=' + attrdict[attr])
             elif property['gui_name'] == 'date':
                 gui_element = 'Date'
             elif property['gui_name'] == 'geometry':
@@ -556,17 +583,20 @@ class Salsah:
                 gui_element = 'Colorpicker'
                 for attr in gui_attr_lut['colorpicker']:
                     if attrdict.get(attr):
-                        gui_attributes.append(attr + '=' + attrdict[attr])
+                        gui_attributes[attr] = attrdict.get(attr)
+                        # gui_attributes.append(attr + '=' + attrdict[attr])
             elif property['gui_name'] == 'hlist':
                 gui_element = 'List'
                 for attr in gui_attr_lut['hlist']:
                     if attrdict.get(attr) and attr == 'hlist':
-                        gui_attributes.append(attr + '=' + self.hlist_mapping[attrdict[attr]])
+                        gui_attributes[attr] = self.hlist_mapping[attrdict[attr]]
+                        # gui_attributes.append(attr + '=' + self.hlist_mapping[attrdict[attr]])
             elif property['gui_name'] == 'radio':
                 gui_element = 'Radio'
                 for attr in gui_attr_lut['pulldown']:
                     if attrdict.get(attr) and attr == 'selection':
-                        gui_attributes.append('hlist=' + self.selection_mapping[attrdict[attr]])
+                        gui_attributes['hlist'] = self.selection_mapping[attrdict[attr]]
+                        # gui_attributes.append('hlist=' + self.selection_mapping[attrdict[attr]])
             elif property['gui_name'] == 'richtext':
                 gui_element = 'Richtext'
             elif property['gui_name'] == 'time':
@@ -575,7 +605,8 @@ class Salsah:
                 gui_element = 'Interval'
                 for attr in gui_attr_lut['interval']:
                     if attrdict.get(attr):
-                        gui_attributes.append(attr + '=' + attrdict[attr])
+                        gui_attributes[attr] = attrdict.get(attr)
+                        # gui_attributes.append(attr + '=' + attrdict[attr])
             elif property['gui_name'] == 'geoname':
                 gui_element = 'Geonames'
             else:
@@ -586,12 +617,21 @@ class Salsah:
             prop['super'] = knora_super
             prop['object'] = knora_object
             prop['gui_element'] = gui_element
-            if len(gui_element) > 0:
+
+            if len(gui_element) > 0 and len(gui_attributes) > 0:
                 prop['gui_attributes'] = gui_attributes
-            prop['cardinality'] = property['occurrence']
 
             props.append(prop)
-        return props
+
+            cardinalities.append({
+                'propname': ':' + pname,
+                'cardinality': property['occurrence'],
+                'gui_order': gui_order
+            })
+
+            gui_order += 1
+
+        return props, cardinalities
 
     def get_resourcetypes_of_vocabulary(self, vocname):
         """
@@ -619,8 +659,9 @@ class Salsah:
                 raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
             salsah_restype_info[restype_id] = result['restype_info']
 
-
         restypes_container: list = []
+        added_properties: Any = {}
+
         for restype_id in restype_ids:
             restype_info = salsah_restype_info[restype_id]
             (voc, name) = restype_info['name'].split(':')
@@ -648,13 +689,17 @@ class Salsah:
                 comments = dict(map(lambda a: (a['shortname'], a['description']), restype_info['description']))
                 restype['comments'] = comments
 
-            #if restype_info.get('iconsrc') is not None:
+            # if restype_info.get('iconsrc') is not None:
             #     restype['iconsrc'] = self.get_icon(restype_info['iconsrc'], restype_info['name'])
 
-            restype['properties'] = self.get_properties_of_resourcetype(vocname, restype_id, salsah_restype_info)
-
+            properties, restype['cardinalities'] = self.get_properties_of_resourcetype(vocname, restype_id, salsah_restype_info)
             restypes_container.append(restype)
-        return restypes_container
+
+            for property in properties:
+                if property['name'] not in added_properties:
+                    added_properties[property['name']] = property
+
+        return list(added_properties.values()), restypes_container
 
     def get_selections_of_vocabulary(self, vocname: str):
         """
@@ -691,7 +736,8 @@ class Salsah:
             if selection.get('description') is not None:
                 root['comments'] = dict(map(lambda a: (a['shortname'], a['description']), selection['description']))
             payload = {'lang': 'all'}
-            req_nodes = self.session.get(self.server + '/api/selections/' + selection['id'], params=payload, auth=(self.user, self.password))
+            req_nodes = self.session.get(self.server + '/api/selections/' + selection['id'], params=payload,
+                                         auth=(self.user, self.password))
             result_nodes = req_nodes.json()
             if result_nodes['status'] != 0:
                 raise SalsahError("SALSAH-ERROR:\n" + result_nodes['errormsg'])
@@ -742,7 +788,8 @@ class Salsah:
             if hlist.get('description') is not None:
                 root['comments'] = dict(map(lambda a: (a['shortname'], a['description']), hlist['description']))
             payload = {'lang': 'all'}
-            req_nodes = self.session.get(self.server + '/api/hlists/' + hlist['id'], params=payload, auth=(self.user, self.password))
+            req_nodes = self.session.get(self.server + '/api/hlists/' + hlist['id'], params=payload,
+                                         auth=(self.user, self.password))
             result_nodes = req_nodes.json()
             if result_nodes['status'] != 0:
                 raise SalsahError("SALSAH-ERROR:\n" + result_nodes['errormsg'])
@@ -751,7 +798,7 @@ class Salsah:
 
         return selections_container
 
-    def get_all_obj_ids(self, project: str, start_at: int = 0, show_nrows:int = -1):
+    def get_all_obj_ids(self, project: str, start_at: int = 0, show_nrows: int = -1):
         """
         Get all resource id's from project
         :param project: Project name
@@ -760,9 +807,10 @@ class Salsah:
         :return:
         """
         payload = {
-            'searchtype' : 'extended',
+            'searchtype': 'extended',
             'filter_by_project': project
         }
+
         if show_nrows > 0:
             payload['show_nrows'] = show_nrows
             payload['start_at'] = start_at
@@ -780,7 +828,8 @@ class Salsah:
         payload = {
             'reqtype': 'info'
         }
-        req = self.session.get(self.server + '/api/resources/' + res_id, params=payload, auth=(self.user, self.password))
+        req = self.session.get(self.server + '/api/resources/' + res_id, params=payload,
+                               auth=(self.user, self.password))
         result = req.json()
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
@@ -791,6 +840,7 @@ class Salsah:
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
         result['firstproperty'] = firstproperty
+
         return result
 
     def write_json(self, proj: Dict):
@@ -798,7 +848,7 @@ class Salsah:
         We send the dict to JSON and write it to the project-folder
         """
         json_filename = self.filename + '.json'
-        pro_cont =json.dumps(proj, indent=4)
+        pro_cont = json.dumps(proj, indent=4)
         f = open(json_filename, "w")
         f.write(pro_cont)
         f.close()
@@ -884,7 +934,7 @@ class Salsah:
             if value:
                 valele = etree.Element('geoname')
                 valele.text = value
-        elif valtype ==ValtypeMap.HLIST.value:
+        elif valtype == ValtypeMap.HLIST.value:
             if value:
                 valele = etree.Element('list')
                 valele.text = 'H_' + value
@@ -903,7 +953,7 @@ class Salsah:
         elif valtype == ValtypeMap.PERIOD.value:
             valele = etree.Element('period')
             pass
-        elif valtype ==ValtypeMap.RESPTR.value:
+        elif valtype == ValtypeMap.RESPTR.value:
             if value:
                 valele = etree.Element('resptr')
                 valele.text = value
@@ -922,7 +972,8 @@ class Salsah:
         if comment is not None:
             print('Comment: ' + comment)
             valele.set('comment', comment)
-        return valele                                                               # Das geht in die Resourcen
+
+        return valele  # Das geht in die Resourcen
 
     def process_property(self, propname: str, property: Dict):
         if propname == '__location__':
@@ -946,6 +997,7 @@ class Salsah:
             options: Dict[str, str] = {
                 'name': propname_new
             }
+
             if int(property["valuetype_id"]) == ValtypeMap.SELECTION.value:
                 (dummy, list_id) = property['attributes'].split("=")
                 options['list'] = self.selection_mapping[list_id]
@@ -993,6 +1045,7 @@ class Salsah:
             'unique_id': resource["resdata"]["res_id"],
             'label': resource['firstproperty']
         })
+
         if resource["resinfo"].get('locdata') is not None:
             imgpath = os.path.join(images_path, resource["resinfo"]['locdata']['origname'])
             ext = os.path.splitext(resource["resinfo"]['locdata']['origname'])[1][1:].strip().lower()
@@ -1007,7 +1060,7 @@ class Salsah:
             getter = resource["resinfo"]['locdata']['path'] + '&format=' + format
             if download:
                 print('Downloading ' + resource["resinfo"]['locdata']['origname'] + '...')
-                dlfile2 = self.session.get(getter, stream=True)     # war urlretrieve()
+                dlfile2 = self.session.get(getter, stream=True)  # war urlretrieve()
 
                 with open(imgpath, 'w+b') as fd:
                     for chunk in dlfile2.iter_content(chunk_size=128):
@@ -1019,10 +1072,10 @@ class Salsah:
             resnode.append(image_node)
 
         for propname in resource["props"]:
-            propnode = self.process_property(propname, resource["props"][propname])     # process_property()
+            propnode = self.process_property(propname, resource["props"][propname])  # process_property()
             if propnode is not None:
                 resnode.append(propnode)
-        self.root.append(resnode)                                                   # Das geht in die Resourcen
+        self.root.append(resnode)  # Das geht in die Resourcen
         print('Resource added. Id=' + resource["resdata"]["res_id"], flush=True)
 
     def write_xml(self):
@@ -1030,6 +1083,7 @@ class Salsah:
         f = open(xml_filename, "wb")
         f.write(etree.tostring(self.root, pretty_print=True, xml_declaration=True, encoding='utf-8'))
         f.close()
+
 
 def program(args):
     parser = argparse.ArgumentParser()
@@ -1052,7 +1106,8 @@ def program(args):
     #
     shortcode = None
     if args.shortcode == "XXXX":
-        r = requests.get('https://raw.githubusercontent.com/dhlab-basel/dasch-ark-resolver-data/master/data/shortcodes.csv')
+        r = requests.get(
+            'https://raw.githubusercontent.com/dhlab-basel/dasch-ark-resolver-data/master/data/shortcodes.csv')
         lines = r.text.split('\r\n')
         for line in lines:
             parts = line.split(',')
@@ -1068,7 +1123,7 @@ def program(args):
 
     user = 'root' if args.user is None else args.user
     password = 'SieuPfa15' if args.password is None else args.password
-    start = args.start;
+    start = args.start
     nrows = -1 if args.nrows is None else args.nrows
     project = args.project
 
@@ -1082,7 +1137,6 @@ def program(args):
             for prop in restype:
                 props[prop.attrib["name"]] = prop.text.strip()
             resptrs[restype.attrib["name"]] = props
-
 
     if args.folder == '-':
         folder = args.project + ".dir"
@@ -1105,13 +1159,13 @@ def program(args):
 
     # Define session
     session = requests.Session()
-    session.verify = False                      # Works...
+    session.verify = False  # Works...
 
     con = Salsah(server=args.server, user=user, password=password, filename=outfile_path,
                  assets_path=assets_path, projectname=args.project, shortcode=shortcode,
                  resptrs=resptrs, session=session)
     proj = con.get_project()
-    # proj['project']['ontology'].update({'resources': con.get_resourcetypes_of_vocabulary(proj['project']['shortname'], session)})
+    # proj['project']['ontologies'].update({'resources': con.get_resourcetypes_of_vocabulary(proj['project']['shortname'], session)})
 
     con.write_json(proj)
 
@@ -1124,7 +1178,6 @@ def program(args):
     """
     resources = list(map(con.get_resource, res_ids))
 
-
     for resource in resources:
         con.process_resource(resource, images_path, args.download)
 
@@ -1132,7 +1185,6 @@ def program(args):
 
 def main():
     program(sys.argv[1:])
-
 
 if __name__ == '__main__':
     program(sys.argv[1:])
