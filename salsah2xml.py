@@ -65,6 +65,7 @@ stags = {
     'italic': '<em>',
     'linebreak': '<br/>',
     'strikethrough': '<strike>',
+    'strike': '<strike>',
     'style': '<span gaga={}>',
     'ol': '<ol>',
     'ul': '<ul>',
@@ -77,7 +78,7 @@ stags = {
     'h3': '<h3>',
     'h4': '<h4>',
     'h5': '<h5>',
-    'h6': '<h6>',
+    'h6': '<h6>'
 }
 
 etags = {
@@ -88,6 +89,7 @@ etags = {
     'italic': '</em>',
     'linebreak': '',
     'strikethrough': '</strike>',
+    'strike': '</strike>',
     'style': '</span',
     'ol': '</ol>',
     'ul': '</ul>',
@@ -100,7 +102,7 @@ etags = {
     'h3': '</h3>',
     'h4': '</h4>',
     'h5': '</h5>',
-    'h6': '</h6>',
+    'h6': '</h6>'
 }
 
 
@@ -157,7 +159,13 @@ def process_richtext(utf8str: str, textattr: str = None, resptrs: list = []) -> 
                         tmpstack.append(tmp)
                 while len(tmpstack) > 0:
                     tmp = tmpstack.pop()
-                    result += stags[tmp['tagname']]
+                    check_list = stags[tmp['tagname']]
+                    if isinstance(check_list, list):
+                        new_string = ' '.join(check_list)
+                    else:
+                        new_string = check_list
+
+                    result += new_string
                     stack.append(tmp)
             pos = attr['pos']
         return 'hex64', base64.b64encode(result.encode())
@@ -1183,8 +1191,10 @@ def program(args):
 
     con.write_xml()
 
+
 def main():
     program(sys.argv[1:])
+
 
 if __name__ == '__main__':
     program(sys.argv[1:])
