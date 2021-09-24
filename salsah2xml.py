@@ -856,9 +856,9 @@ class Salsah:
         We send the dict to JSON and write it to the project-folder
         """
         json_filename = self.filename + '.json'
-        pro_cont = json.dumps(proj, indent=4)
+        file_content = json.dumps(proj, indent=4)
         f = open(json_filename, "w")
-        f.write(pro_cont)
+        f.write(file_content)
         f.close()
 
     def process_value(self, valtype: int, value: any, comment: str = None):
