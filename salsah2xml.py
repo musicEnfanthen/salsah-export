@@ -400,7 +400,7 @@ class Salsah:
             #
             # convert attributes into dict
             #
-            attrdict = {}
+            attrdict: Dict = {}
             if property.get('attributes') is not None:
                 attributes = property['attributes'].split(';')
                 for attribute in attributes:
@@ -552,7 +552,7 @@ class Salsah:
                     "SALSAH-ERROR:\n\"Invalid vocabulary used: " + property['vocabulary'] + " by property " +
                     property['name'])
 
-            gui_attributes = {}
+            gui_attributes: Dict = {}
             if property['gui_name'] == 'text':
                 gui_element = 'SimpleText'
                 for attr in gui_attr_lut['text']:
@@ -667,7 +667,7 @@ class Salsah:
 
         restype_ids: List = list(map(lambda r: r['id'], result['resourcetypes']))
 
-        salsah_restype_info: dict = {}
+        salsah_restype_info: Dict = {}
         for restype_id in restype_ids:
             payload: dict = {
                 'lang': 'all'
@@ -1148,13 +1148,13 @@ def program(args):
     nrows = -1 if args.nrows is None else args.nrows
     project = args.project
 
-    resptrs: dict = {}
+    resptrs: Dict = {}
     if args.resptrs_file is not None:
         tree = etree.parse(args.resptrs_file)
         root = tree.getroot()
         for restype in root:
             restype_name = restype.attrib["name"].strip()
-            props: dict = {}
+            props: Dict = {}
             for prop in restype:
                 props[prop.attrib["name"]] = prop.text.strip()
             resptrs[restype.attrib["name"]] = props
