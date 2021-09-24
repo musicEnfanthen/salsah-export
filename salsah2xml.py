@@ -652,7 +652,7 @@ class Salsah:
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
 
-        restype_ids: List = list(map(lambda r: r['id'], result['resourcetypeL']))
+        restype_ids: List = list(map(lambda r: r['id'], result['resourcetypes']))
 
         salsah_restype_info: dict = {}
         for restype_id in restype_ids:
