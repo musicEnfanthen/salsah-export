@@ -228,14 +228,25 @@ class Salsah:
         self.hlist_node_mapping: Dict[str, str] = {}
         self.vocabulary: str = ""
 
+        # Prepare namespaces for XML root element
+        default_namespace = "https://dasch.swiss/schema"
         xsi_namespace = "http://www.w3.org/2001/XMLSchema-instance"
         nsmap: Dict = {
+            None: default_namespace,
             'xsi': xsi_namespace,
         }
-        attr_qname = etree.QName("http://www.w3.org/2001/XMLSchema-instance", "schemaLocation")
+        xsi_schema_location_qname = etree.QName(xsi_namespace, "schemaLocation")
+        xsi_schema_location_url = "https://dasch.swiss/schema https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/knora/dsplib/schemas/data.xsd"
+
+        # Create root element with namespaces for XML file
         self.root = etree.Element('knora', nsmap=nsmap)
-        self.root.set(attr_qname, "../knora-data-schema.xsd")
+
+        # Add xsi:schemaLocation attribute to root element of XML file
+        self.root.set(xsi_schema_location_qname, xsi_schema_location_url)
+
+        # Add project shortcode to root element of XML file
         self.root.set('shortcode', self.shortcode)
+
         self.mime = magic.Magic(mime=True)
         self.session = session
 
@@ -294,6 +305,7 @@ class Salsah:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
 
         project_container: Dict = {
+            "$schema": "https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/knora/dsplib/schemas/ontology.json",
             "prefixes": dict(map(lambda a: (a['shortname'], a['uri']), sysvocabularies)),
             "project": { }, # will be filled below
         }
@@ -332,7 +344,8 @@ class Salsah:
 
         self.vocabulary = vocabulary['shortname']
         project['lists'] = self.get_selections_of_vocabulary(vocabulary['shortname'])
-        self.root.set('vocabulary', vocabulary['shortname'])
+        # Add default ontology name (= project shortname) to root element of XML file
+        self.root.set('default-ontology', vocabulary['shortname'])
 
         # ToDo: not yet implemented in create_ontology
         # if vocabulary.get('description') is not None and vocabulary['description']:
@@ -1050,7 +1063,7 @@ class Salsah:
             restype = resource["resdata"]["restype_name"]
         resnode = etree.Element('resource', {
             'restype': restype,
-            'unique_id': resource["resdata"]["res_id"],
+            'id': resource["resdata"]["res_id"],
             'label': resource['firstproperty']
         })
 
