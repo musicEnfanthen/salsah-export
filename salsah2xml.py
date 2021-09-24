@@ -295,11 +295,7 @@ class Salsah:
 
         project_container: Dict = {
             "prefixes": dict(map(lambda a: (a['shortname'], a['uri']), sysvocabularies)),
-            "project": {
-                'shortcode': self.shortcode,
-                'shortname': result['project_info']['shortname'],
-                'longname': result['project_info']['longname'],
-            },
+            "project": { }, # will be filled below
         }
         project_info = result['project_info']  # Is this the project_container??? Decide later
         project: Dict = {
@@ -1135,7 +1131,7 @@ def program(args):
 
     user = 'root' if args.user is None else args.user
     password = 'SieuPfa15' if args.password is None else args.password
-    start = args.start
+    start = 0 if args.start is None else args.start
     nrows = -1 if args.nrows is None else args.nrows
     project = args.project
 
