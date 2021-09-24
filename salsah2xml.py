@@ -207,7 +207,7 @@ class Salsah:
         :param filename:
         :param projectname: Name of the project to dump
         :param shortcode: Shortcode for Knora that is reserved for the project
-        :param resptrs: XML file  containing  object information for resource pointer
+        :param resptrs: XML file containing object information for resource pointer
         :param session: Session object
         """
         super().__init__()
@@ -1007,7 +1007,7 @@ class Salsah:
             if tmp[0] == self.vocabulary or tmp[0] == 'dc':
                 propname_new = tmp[1]  # strip vocabulary
                 #
-                # if the propname does not start with "has", add  it to the propname. We have to do this
+                # if the propname does not start with "has", add it to the propname. We have to do this
                 # to avoid naming conflicts between resources and properties which share the same
                 # namespace in GraphDB
                 #
