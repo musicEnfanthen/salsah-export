@@ -1,0 +1,5 @@
+lxml
+requests
+jdcal
+python-magic-bin
+libmagic
