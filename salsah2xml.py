@@ -1,7 +1,6 @@
-from typing import List, Set, Dict, Tuple, Optional
+from typing import List, Dict, Tuple
 import os
 from lxml import etree
-from pathlib import Path
 import requests
 import argparse
 from enum import Enum
@@ -12,7 +11,6 @@ import json
 import jdcal
 import shutil
 import sys
-# import request
 
 requests.urllib3.disable_warnings(requests.urllib3.exceptions.InsecureRequestWarning)
 
