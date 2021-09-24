@@ -20,7 +20,7 @@ requests.urllib3.disable_warnings(requests.urllib3.exceptions.InsecureRequestWar
 # https://phpmyadmin.sw-zh-dasch-prod-02.prod.dasch.swiss
 #
 
-Valtype = {
+Valtype: Dict = {
     '1': 'text',
     '2': 'integer',
     '3': 'float',
@@ -37,6 +37,7 @@ Valtype = {
     '14': 'richtext',
     '15': 'geoname'
 }
+
 
 class ValtypeMap(Enum):
     TEXT = 1
@@ -55,7 +56,8 @@ class ValtypeMap(Enum):
     RICHTEXT = 14
     GEONAME = 15
 
-stags = {
+
+stags: Dict = {
     '_link': ['<a href="{}">', '<a class="salsah-link" href="IRI:{}:IRI">'],
     'bold': '<strong>',
     'strong': '<strong>',
@@ -79,7 +81,8 @@ stags = {
     'h6': '<h6>'
 }
 
-etags = {
+
+etags: Dict = {
     '_link': '</a>',
     'bold': '</strong>',
     'strong': '</strong>',
@@ -104,16 +107,16 @@ etags = {
 }
 
 
-def process_richtext(utf8str: str, textattr: str = None, resptrs: list = []) -> (str, str):
+def process_richtext(utf8str: str, textattr: str = None, resptrs: List = []) -> (str, str):
     if textattr is not None:
         attributes = json.loads(textattr)
         if len(attributes) == 0:
             return 'utf8', utf8str
-        attrlist = []
-        result = ''
+        attrlist: List= []
+        result: str = ''
         for key, vals in attributes.items():
             for val in vals:
-                attr = {}
+                attr: Dict = {}
                 attr['tagname'] = key
                 attr['type'] = 'start'
                 attr['pos'] = int(val['start'])
@@ -132,7 +135,7 @@ def process_richtext(utf8str: str, textattr: str = None, resptrs: list = []) -> 
                 attrlist.append(attr)
         attrlist = sorted(attrlist, key=lambda attr: attr['pos'])
         pos: int = 0
-        stack = []
+        stack: List= []
         for attr in attrlist:
             result += utf8str[pos:attr['pos']]
             if attr['type'] == 'start':
@@ -146,7 +149,7 @@ def process_richtext(utf8str: str, textattr: str = None, resptrs: list = []) -> 
                 stack.append(attr)
             elif attr['type'] == 'end':
                 match = False
-                tmpstack = []
+                tmpstack: List= []
                 while True:
                     tmp = stack.pop()
                     result += etags[tmp['tagname']]
@@ -226,7 +229,7 @@ class Salsah:
         self.vocabulary: str = ""
 
         xsi_namespace = "http://www.w3.org/2001/XMLSchema-instance"
-        nsmap = {
+        nsmap: Dict = {
             'xsi': xsi_namespace,
         }
         attr_qname = etree.QName("http://www.w3.org/2001/XMLSchema-instance", "schemaLocation")
@@ -289,7 +292,7 @@ class Salsah:
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
 
-        project_container = {
+        project_container: Dict = {
             "prefixes": dict(map(lambda a: (a['shortname'], a['uri']), sysvocabularies)),
             "project": {
                 'shortcode': self.shortcode,
@@ -298,7 +301,7 @@ class Salsah:
             },
         }
         project_info = result['project_info']  # Is this the project_container??? Decide later
-        project = {
+        project: Dict = {
             'shortcode': self.shortcode,
             'shortname': project_info['shortname'],
             'longname': project_info['longname'],
@@ -365,9 +368,9 @@ class Salsah:
             'interval': ['duration']
         }
 
-        props = []
-        cardinalities = []
-        gui_order: number = 1
+        props: List= []
+        cardinalities: List= []
+        gui_order: int = 1
 
         for property in salsah_restype_info[restype_id]['properties']:
             if property['name'] == '__location__':
@@ -652,7 +655,7 @@ class Salsah:
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
 
-        restype_ids: list = list(map(lambda r: r['id'], result['resourcetypes']))
+        restype_ids: List = list(map(lambda r: r['id'], result['resourcetypeL']))
 
         salsah_restype_info: dict = {}
         for restype_id in restype_ids:
@@ -665,8 +668,8 @@ class Salsah:
                 raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
             salsah_restype_info[restype_id] = result['restype_info']
 
-        restypes_container: list = []
-        added_properties: Any = {}
+        restypes_container: List= []
+        added_properties: Dict = {}
 
         for restype_id in restype_ids:
             restype_info = salsah_restype_info[restype_id]
@@ -772,7 +775,7 @@ class Salsah:
         #
         # this is a helper function for easy recursion
         #
-        def process_children(children: list) -> list:
+        def process_children(children: List) -> List:
             newnodes = []
             for node in children:
                 self.hlist_node_mapping[node['id']] = node['name']
