@@ -1,7 +1,6 @@
-from typing import List, Set, Dict, Tuple, Optional
+from typing import List, Dict, Tuple
 import os
 from lxml import etree
-from pathlib import Path
 import requests
 import argparse
 from enum import Enum
@@ -12,7 +11,6 @@ import json
 import jdcal
 import shutil
 import sys
-# import request
 
 requests.urllib3.disable_warnings(requests.urllib3.exceptions.InsecureRequestWarning)
 
@@ -22,7 +20,7 @@ requests.urllib3.disable_warnings(requests.urllib3.exceptions.InsecureRequestWar
 # https://phpmyadmin.sw-zh-dasch-prod-02.prod.dasch.swiss
 #
 
-Valtype = {
+Valtype: Dict = {
     '1': 'text',
     '2': 'integer',
     '3': 'float',
@@ -39,6 +37,7 @@ Valtype = {
     '14': 'richtext',
     '15': 'geoname'
 }
+
 
 class ValtypeMap(Enum):
     TEXT = 1
@@ -57,7 +56,8 @@ class ValtypeMap(Enum):
     RICHTEXT = 14
     GEONAME = 15
 
-stags = {
+
+stags: Dict = {
     '_link': ['<a href="{}">', '<a class="salsah-link" href="IRI:{}:IRI">'],
     'bold': '<strong>',
     'strong': '<strong>',
@@ -81,7 +81,8 @@ stags = {
     'h6': '<h6>'
 }
 
-etags = {
+
+etags: Dict = {
     '_link': '</a>',
     'bold': '</strong>',
     'strong': '</strong>',
@@ -90,7 +91,7 @@ etags = {
     'linebreak': '',
     'strikethrough': '</strike>',
     'strike': '</strike>',
-    'style': '</span',
+    'style': '</span>',
     'ol': '</ol>',
     'ul': '</ul>',
     'li': '</li>',
@@ -106,16 +107,16 @@ etags = {
 }
 
 
-def process_richtext(utf8str: str, textattr: str = None, resptrs: list = []) -> (str, str):
+def process_richtext(utf8str: str, textattr: str = None, resptrs: List = []) -> (str, str):
     if textattr is not None:
         attributes = json.loads(textattr)
         if len(attributes) == 0:
             return 'utf8', utf8str
-        attrlist = []
-        result = ''
+        attrlist: List= []
+        result: str = ''
         for key, vals in attributes.items():
             for val in vals:
-                attr = {}
+                attr: Dict = {}
                 attr['tagname'] = key
                 attr['type'] = 'start'
                 attr['pos'] = int(val['start'])
@@ -134,7 +135,7 @@ def process_richtext(utf8str: str, textattr: str = None, resptrs: list = []) -> 
                 attrlist.append(attr)
         attrlist = sorted(attrlist, key=lambda attr: attr['pos'])
         pos: int = 0
-        stack = []
+        stack: List= []
         for attr in attrlist:
             result += utf8str[pos:attr['pos']]
             if attr['type'] == 'start':
@@ -148,7 +149,7 @@ def process_richtext(utf8str: str, textattr: str = None, resptrs: list = []) -> 
                 stack.append(attr)
             elif attr['type'] == 'end':
                 match = False
-                tmpstack = []
+                tmpstack: List= []
                 while True:
                     tmp = stack.pop()
                     result += etags[tmp['tagname']]
@@ -228,7 +229,7 @@ class Salsah:
         self.vocabulary: str = ""
 
         xsi_namespace = "http://www.w3.org/2001/XMLSchema-instance"
-        nsmap = {
+        nsmap: Dict = {
             'xsi': xsi_namespace,
         }
         attr_qname = etree.QName("http://www.w3.org/2001/XMLSchema-instance", "schemaLocation")
@@ -286,21 +287,18 @@ class Salsah:
         #
         # get project info
         #
-        req = self.session.get(self.server + '/api/projects/' + self.projectname + "?lang=all", auth=(self.user, self.password))
+        req = self.session.get(self.server + '/api/projects/' + self.projectname + "?lang=all",
+                               auth=(self.user, self.password))
         result = req.json()
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
 
-        project_container = {
+        project_container: Dict = {
             "prefixes": dict(map(lambda a: (a['shortname'], a['uri']), sysvocabularies)),
-            "project": {
-                'shortcode': self.shortcode,
-                'shortname': result['project_info']['shortname'],
-                'longname': result['project_info']['longname'],
-            },
+            "project": { }, # will be filled below
         }
         project_info = result['project_info']  # Is this the project_container??? Decide later
-        project = {
+        project: Dict = {
             'shortcode': self.shortcode,
             'shortname': project_info['shortname'],
             'longname': project_info['longname'],
@@ -321,7 +319,7 @@ class Salsah:
 
         #
         # Get the vocabulary. The old Salsah uses only one vocabulary per project....
-        # Note: the API call always returns also the system vocabularies which we have to be excluded
+        # Note: the API call always returns also the system vocabularies which have to be excluded
         #
         req = self.session.get(self.server + '/api/vocabularies/' + self.projectname, auth=(self.user, self.password))
         result = req.json()
@@ -367,9 +365,9 @@ class Salsah:
             'interval': ['duration']
         }
 
-        props = []
-        cardinalities = []
-        gui_order: number = 1
+        props: List= []
+        cardinalities: List= []
+        gui_order: int = 1
 
         for property in salsah_restype_info[restype_id]['properties']:
             if property['name'] == '__location__':
@@ -654,21 +652,22 @@ class Salsah:
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
 
-        restype_ids: list = list(map(lambda r: r['id'], result['resourcetypes']))
+        restype_ids: List = list(map(lambda r: r['id'], result['resourcetypes']))
 
         salsah_restype_info: dict = {}
         for restype_id in restype_ids:
             payload: dict = {
                 'lang': 'all'
             }
-            req = self.session.get(self.server + '/api/resourcetypes/' + restype_id, params=payload, auth=(self.user, self.password))
+            req = self.session.get(self.server + '/api/resourcetypes/' + restype_id, params=payload,
+                                   auth=(self.user, self.password))
             result = req.json()
             if result['status'] != 0:
                 raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
             salsah_restype_info[restype_id] = result['restype_info']
 
-        restypes_container: list = []
-        added_properties: Any = {}
+        restypes_container: List= []
+        added_properties: Dict = {}
 
         for restype_id in restype_ids:
             restype_info = salsah_restype_info[restype_id]
@@ -700,7 +699,8 @@ class Salsah:
             # if restype_info.get('iconsrc') is not None:
             #     restype['iconsrc'] = self.get_icon(restype_info['iconsrc'], restype_info['name'])
 
-            properties, restype['cardinalities'] = self.get_properties_of_resourcetype(vocname, restype_id, salsah_restype_info)
+            properties, restype['cardinalities'] = self.get_properties_of_resourcetype(vocname, restype_id,
+                                                                                       salsah_restype_info)
             restypes_container.append(restype)
 
             for property in properties:
@@ -774,7 +774,7 @@ class Salsah:
         #
         # this is a helper function for easy recursion
         #
-        def process_children(children: list) -> list:
+        def process_children(children: List) -> List:
             newnodes = []
             for node in children:
                 self.hlist_node_mapping[node['id']] = node['name']
@@ -856,9 +856,9 @@ class Salsah:
         We send the dict to JSON and write it to the project-folder
         """
         json_filename = self.filename + '.json'
-        pro_cont = json.dumps(proj, indent=4)
+        file_content = json.dumps(proj, indent=4)
         f = open(json_filename, "w")
-        f.write(pro_cont)
+        f.write(file_content)
         f.close()
 
     def process_value(self, valtype: int, value: any, comment: str = None):
@@ -1100,11 +1100,11 @@ def program(args):
     parser.add_argument("-p", "--password", help="The password for login")
     parser.add_argument("-P", "--project", help="Shortname or ID of project")
     parser.add_argument("-s", "--shortcode", default='XXXX', help="Knora-shortcode of project")
-    parser.add_argument("-n", "--nrows", type=int, help="number of records to get, -1 to get all")
+    parser.add_argument("-n", "--nrows", type=int, help="Number of records to get, -1 to get all")
     parser.add_argument("-S", "--start", type=int, help="Start at record with given number")
     parser.add_argument("-F", "--folder", default="-", help="Output folder")
-    parser.add_argument("-r", "--resptrs_file", help="list of resptrs targets")
-    parser.add_argument("-d", "--download", action="store_true", help="Download  image files")
+    parser.add_argument("-r", "--resptrs_file", help="List of resptrs targets")
+    parser.add_argument("-d", "--download", action="store_true", help="Download image files")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose feedback")
 
     args = parser.parse_args()
@@ -1131,7 +1131,7 @@ def program(args):
 
     user = 'root' if args.user is None else args.user
     password = 'SieuPfa15' if args.password is None else args.password
-    start = args.start
+    start = 0 if args.start is None else args.start
     nrows = -1 if args.nrows is None else args.nrows
     project = args.project
 
@@ -1162,7 +1162,7 @@ def program(args):
         os.mkdir(assets_path)
         os.mkdir(images_path)
     except OSError:
-        print("Could'nt create necessary folders")
+        print("Couldn't create necessary folders")
         exit(2)
 
     # Define session
