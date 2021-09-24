@@ -91,7 +91,7 @@ etags: Dict = {
     'linebreak': '',
     'strikethrough': '</strike>',
     'strike': '</strike>',
-    'style': '</span',
+    'style': '</span>',
     'ol': '</ol>',
     'ul': '</ul>',
     'li': '</li>',
@@ -322,7 +322,7 @@ class Salsah:
 
         #
         # Get the vocabulary. The old Salsah uses only one vocabulary per project....
-        # Note: the API call always returns also the system vocabularies which we have to be excluded
+        # Note: the API call always returns also the system vocabularies which have to be excluded
         #
         req = self.session.get(self.server + '/api/vocabularies/' + self.projectname, auth=(self.user, self.password))
         result = req.json()
@@ -1105,7 +1105,7 @@ def program(args):
     parser.add_argument("-S", "--start", type=int, help="Start at record with given number")
     parser.add_argument("-F", "--folder", default="-", help="Output folder")
     parser.add_argument("-r", "--resptrs_file", help="list of resptrs targets")
-    parser.add_argument("-d", "--download", action="store_true", help="Download  image files")
+    parser.add_argument("-d", "--download", action="store_true", help="Download image files")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose feedback")
 
     args = parser.parse_args()
@@ -1163,7 +1163,7 @@ def program(args):
         os.mkdir(assets_path)
         os.mkdir(images_path)
     except OSError:
-        print("Could'nt create necessary folders")
+        print("Couldn't create necessary folders")
         exit(2)
 
     # Define session
