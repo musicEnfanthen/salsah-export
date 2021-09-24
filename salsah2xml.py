@@ -287,7 +287,8 @@ class Salsah:
         #
         # get project info
         #
-        req = self.session.get(self.server + '/api/projects/' + self.projectname + "?lang=all", auth=(self.user, self.password))
+        req = self.session.get(self.server + '/api/projects/' + self.projectname + "?lang=all",
+                               auth=(self.user, self.password))
         result = req.json()
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
@@ -662,7 +663,8 @@ class Salsah:
             payload: dict = {
                 'lang': 'all'
             }
-            req = self.session.get(self.server + '/api/resourcetypes/' + restype_id, params=payload, auth=(self.user, self.password))
+            req = self.session.get(self.server + '/api/resourcetypes/' + restype_id, params=payload,
+                                   auth=(self.user, self.password))
             result = req.json()
             if result['status'] != 0:
                 raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
@@ -701,7 +703,8 @@ class Salsah:
             # if restype_info.get('iconsrc') is not None:
             #     restype['iconsrc'] = self.get_icon(restype_info['iconsrc'], restype_info['name'])
 
-            properties, restype['cardinalities'] = self.get_properties_of_resourcetype(vocname, restype_id, salsah_restype_info)
+            properties, restype['cardinalities'] = self.get_properties_of_resourcetype(vocname, restype_id,
+                                                                                       salsah_restype_info)
             restypes_container.append(restype)
 
             for property in properties:
