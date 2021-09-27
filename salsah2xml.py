@@ -207,7 +207,7 @@ class Salsah:
         :param filename:
         :param projectname: Name of the project to dump
         :param shortcode: Shortcode for Knora that is reserved for the project
-        :param resptrs: XML file  containing  object information for resource pointer
+        :param resptrs: XML file containing object information for resource pointer
         :param session: Session object
         """
         super().__init__()
@@ -228,14 +228,25 @@ class Salsah:
         self.hlist_node_mapping: Dict[str, str] = {}
         self.vocabulary: str = ""
 
+        # Prepare namespaces for XML root element
+        default_namespace = "https://dasch.swiss/schema"
         xsi_namespace = "http://www.w3.org/2001/XMLSchema-instance"
         nsmap: Dict = {
+            None: default_namespace,
             'xsi': xsi_namespace,
         }
-        attr_qname = etree.QName("http://www.w3.org/2001/XMLSchema-instance", "schemaLocation")
+        xsi_schema_location_qname = etree.QName(xsi_namespace, "schemaLocation")
+        xsi_schema_location_url = "https://dasch.swiss/schema https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/knora/dsplib/schemas/data.xsd"
+
+        # Create root element with namespaces for XML file
         self.root = etree.Element('knora', nsmap=nsmap)
-        self.root.set(attr_qname, "../knora-data-schema.xsd")
+
+        # Add xsi:schemaLocation attribute to root element of XML file
+        self.root.set(xsi_schema_location_qname, xsi_schema_location_url)
+
+        # Add project shortcode to root element of XML file
         self.root.set('shortcode', self.shortcode)
+
         self.mime = magic.Magic(mime=True)
         self.session = session
 
@@ -294,6 +305,7 @@ class Salsah:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
 
         project_container: Dict = {
+            "$schema": "https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/knora/dsplib/schemas/ontology.json",
             "prefixes": dict(map(lambda a: (a['shortname'], a['uri']), sysvocabularies)),
             "project": { }, # will be filled below
         }
@@ -332,7 +344,8 @@ class Salsah:
 
         self.vocabulary = vocabulary['shortname']
         project['lists'] = self.get_selections_of_vocabulary(vocabulary['shortname'])
-        self.root.set('vocabulary', vocabulary['shortname'])
+        # Add default ontology name (= project shortname) to root element of XML file
+        self.root.set('default-ontology', vocabulary['shortname'])
 
         # ToDo: not yet implemented in create_ontology
         # if vocabulary.get('description') is not None and vocabulary['description']:
@@ -387,7 +400,7 @@ class Salsah:
             #
             # convert attributes into dict
             #
-            attrdict = {}
+            attrdict: Dict = {}
             if property.get('attributes') is not None:
                 attributes = property['attributes'].split(';')
                 for attribute in attributes:
@@ -539,7 +552,7 @@ class Salsah:
                     "SALSAH-ERROR:\n\"Invalid vocabulary used: " + property['vocabulary'] + " by property " +
                     property['name'])
 
-            gui_attributes = {}
+            gui_attributes: Dict = {}
             if property['gui_name'] == 'text':
                 gui_element = 'SimpleText'
                 for attr in gui_attr_lut['text']:
@@ -654,7 +667,7 @@ class Salsah:
 
         restype_ids: List = list(map(lambda r: r['id'], result['resourcetypes']))
 
-        salsah_restype_info: dict = {}
+        salsah_restype_info: Dict = {}
         for restype_id in restype_ids:
             payload: dict = {
                 'lang': 'all'
@@ -994,7 +1007,7 @@ class Salsah:
             if tmp[0] == self.vocabulary or tmp[0] == 'dc':
                 propname_new = tmp[1]  # strip vocabulary
                 #
-                # if the propname does not start with "has", add  it to the propname. We have to do this
+                # if the propname does not start with "has", add it to the propname. We have to do this
                 # to avoid naming conflicts between resources and properties which share the same
                 # namespace in GraphDB
                 #
@@ -1050,7 +1063,7 @@ class Salsah:
             restype = resource["resdata"]["restype_name"]
         resnode = etree.Element('resource', {
             'restype': restype,
-            'unique_id': resource["resdata"]["res_id"],
+            'id': resource["resdata"]["res_id"],
             'label': resource['firstproperty']
         })
 
@@ -1135,13 +1148,13 @@ def program(args):
     nrows = -1 if args.nrows is None else args.nrows
     project = args.project
 
-    resptrs: dict = {}
+    resptrs: Dict = {}
     if args.resptrs_file is not None:
         tree = etree.parse(args.resptrs_file)
         root = tree.getroot()
         for restype in root:
             restype_name = restype.attrib["name"].strip()
-            props: dict = {}
+            props: Dict = {}
             for prop in restype:
                 props[prop.attrib["name"]] = prop.text.strip()
             resptrs[restype.attrib["name"]] = props
