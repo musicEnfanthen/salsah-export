@@ -343,9 +343,11 @@ class Salsah:
                 vocabulary = voc
 
         self.vocabulary = vocabulary['shortname']
-        project['lists'] = self.get_selections_of_vocabulary(vocabulary['shortname'])
         # Add default ontology name (= project shortname) to root element of XML file
         self.root.set('default-ontology', vocabulary['shortname'])
+
+        # Get project selections
+        project['lists'] = self.get_selections_of_vocabulary(vocabulary['shortname'])
 
         # ToDo: not yet implemented in create_ontology
         # if vocabulary.get('description') is not None and vocabulary['description']:
