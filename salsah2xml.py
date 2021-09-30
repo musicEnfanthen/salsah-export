@@ -398,7 +398,7 @@ class Salsah:
                 'labels': dict(map(lambda a: (a['shortname'], a['label']), property['label'])),
             }
             if property.get('description') is not None:
-                prop['comments']: dict(map(lambda a: (a['shortname'], a['label']), property['description']))
+                prop['comments'] = dict(map(lambda a: (a['shortname'], a['description']), property['description']))
 
             #
             # convert attributes into dict
