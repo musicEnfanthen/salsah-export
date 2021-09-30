@@ -1,14 +1,15 @@
-from typing import List, Dict, Tuple
-import os
-from lxml import etree
-import requests
-import argparse
 from enum import Enum
-import base64
+from lxml import etree
 from pprint import pprint
-import magic
-import json
+from re import sub, search
+from typing import List, Dict, Tuple
+import argparse
+import base64
 import jdcal
+import json
+import magic
+import os
+import requests
 import shutil
 import sys
 
