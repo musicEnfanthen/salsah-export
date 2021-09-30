@@ -1,14 +1,15 @@
-from typing import List, Dict, Tuple
-import os
-from lxml import etree
-import requests
-import argparse
 from enum import Enum
-import base64
+from lxml import etree
 from pprint import pprint
-import magic
-import json
+from re import sub, search
+from typing import List, Dict, Tuple
+import argparse
+import base64
 import jdcal
+import json
+import magic
+import os
+import requests
 import shutil
 import sys
 
@@ -343,9 +344,11 @@ class Salsah:
                 vocabulary = voc
 
         self.vocabulary = vocabulary['shortname']
-        project['lists'] = self.get_selections_of_vocabulary(vocabulary['shortname'])
         # Add default ontology name (= project shortname) to root element of XML file
         self.root.set('default-ontology', vocabulary['shortname'])
+
+        # Get project selections
+        project['lists'] = self.get_selections_of_vocabulary(vocabulary['shortname'])
 
         # ToDo: not yet implemented in create_ontology
         # if vocabulary.get('description') is not None and vocabulary['description']:
@@ -392,10 +395,10 @@ class Salsah:
 
             prop = {
                 'name': pname,
-                'labels': dict(map(lambda a: (a['shortname'], a['label']), property['label'])),
+                'labels': dict(map(lambda a: (a['shortname'], a['label']), property['label']))
             }
             if property.get('description') is not None:
-                prop['comments']: dict(map(lambda a: (a['shortname'], a['label']), property['description']))
+                prop['comments'] = dict(map(lambda a: (a['shortname'], a['description']), property['description']))
 
             #
             # convert attributes into dict
