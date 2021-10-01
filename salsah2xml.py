@@ -428,6 +428,31 @@ class Salsah:
 
         return project_container
 
+    def prepare_property_name(self, name: str) -> str:
+        # properties to prefix with 'is' (adjustable for projects)
+        is_prefix_map = [
+            'preopus_of',
+            'published_in',
+            'part_of_convolute'
+        ]
+
+        pname = name
+        # strip end of property names if necessary (adjustable for projects)
+        if pname.endswith('_rt'):
+            pname = pname.replace('_rt', '')
+        elif pname.endswith('_hl'):
+            pname = pname.replace('_hl', '')
+
+        # prefix property names with 'has' or 'is'
+        if pname.startswith('has') or pname.startswith('is'):
+            return lower_camel_case(pname)
+        else:
+            if pname in is_prefix_map:
+                return 'is' + upper_camel_case(pname)
+            else:
+                return 'has' + upper_camel_case(pname)
+
+
     def get_properties_of_resourcetype(self, vocname: str, restype_id: int, salsah_restype_info: dict) -> list:
 
         gui_attr_lut = {
@@ -449,10 +474,8 @@ class Salsah:
         for property in salsah_restype_info[restype_id]['properties']:
             if property['name'] == '__location__':
                 continue
-            if property['name'].startswith('has'):
-                pname = property['name']
-            else:
-                pname = 'has' + property['name'].capitalize()
+
+            pname = self.prepare_property_name(property['name'])
 
             prop = {
                 'name': pname,
@@ -1073,12 +1096,11 @@ class Salsah:
             if tmp[0] == self.vocabulary or tmp[0] == 'dc':
                 propname_new = tmp[1]  # strip vocabulary
                 #
-                # if the propname does not start with "has", add it to the propname. We have to do this
+                # if the propname does not start with "has" or is, add it to the propname. We have to do this
                 # to avoid naming conflicts between resources and properties which share the same
                 # namespace in GraphDB
                 #
-                if not propname_new.startswith('has'):
-                    propname_new = 'has' + propname_new.capitalize()
+                propname_new = self.prepare_property_name(propname_new)
             else:
                 propname_new = propname
             options: Dict[str, str] = {
