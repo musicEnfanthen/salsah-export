@@ -575,7 +575,7 @@ class Salsah:
                                 knora_object = tmp[property['vocabulary'] + ':' + property['name'].capitalize()]
                             raise SalsahError("SALSAH-ERROR:\n\"restypeid\" is missing!")
                         (voc, restype) = salsah_restype_info[attrdict['restypeid']]['name'].split(':')
-                        knora_object = voc + ':' + restype.capitalize()
+                        knora_object = voc + ':' + upper_camel_case(restype)
                     if knora_object is None:
                         knora_object = 'FIXME--Resource--FIXME'
                         print("WARNING: Resclass {} has resptr {} with no object!".format(
@@ -707,7 +707,7 @@ class Salsah:
             props.append(prop)
 
             cardinalities.append({
-                'propname': ':' + pname,
+                'propname': ':' + lower_camel_case(prop['name']),
                 'cardinality': property['occurrence'],
                 'gui_order': gui_order
             })
@@ -764,7 +764,7 @@ class Salsah:
             labels = dict(map(lambda a: (a['shortname'], a['label']), restype_info['label']))
 
             restype = {
-                'name': name.capitalize(),
+                'name': upper_camel_case(name),
                 'super': super,
                 'labels': labels
             }
@@ -1122,9 +1122,9 @@ class Salsah:
     def process_resource(self, resource: Dict, images_path: str, download: bool = True, verbose: bool = True):
         tmp = resource["resdata"]["restype_name"].split(':')
         if tmp[0] == self.vocabulary:
-            restype = tmp[1].capitalize()
+            restype = upper_camel_case(tmp[1])
         else:
-            restype = resource["resdata"]["restype_name"]
+            restype = upper_camel_case(resource["resdata"]["restype_name"])
         resnode = etree.Element('resource', {
             'restype': restype,
             'id': resource["resdata"]["res_id"],
