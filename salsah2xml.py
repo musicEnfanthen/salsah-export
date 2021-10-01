@@ -697,7 +697,8 @@ class Salsah:
                     "SALSAH-ERROR:\n\"Invalid gui_element: " + property['gui_name'] + " by property " +
                     property['name'])
 
-            prop['super'] = knora_super
+            if knora_super:
+                prop['super'] = knora_super
             prop['object'] = knora_object
             prop['gui_element'] = gui_element
 
