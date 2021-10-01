@@ -166,9 +166,6 @@ def upper_camel_case(str):
     return camel_case(str, 'upper')
 
 
-
-
-
 def process_richtext(utf8str: str, textattr: str = None, resptrs: List = []) -> (str, str):
     if textattr is not None:
         attributes = json.loads(textattr)
