@@ -108,6 +108,67 @@ etags: Dict = {
 }
 
 
+def camel_case(str: str, firstLetterCase = None):
+    """
+    Helper function to transform a given string str to camelCase.
+    firstLetterCase can take values 'upper' and 'lower'.
+    :param str: given string to transform
+    :return: Transformed string (lowerCamelCase or UpperCamelCase
+
+    :example:
+    str = "transcriptionTest-for_endLess DeLuxe"
+    str2 = "TranscriptionTest"
+
+    camelCase(str, 'lower')) --> transcriptionTestForEndLessDeLuxe
+    camelCase(str2, 'lower') --> transcriptionTest
+    camelCase(str, 'upper') --> TranscriptionTestForEndLessDeLuxe
+    camelCase(str2, 'upper') --> TranscriptionTest
+    """
+    s = str
+    # Look for underscores, hyphens or white space
+    if search(r"(_|-|\s)+", str):
+        # Convert _ and - to white space
+        s = sub(r"(_|-)+", " ", str)
+        # Capitalize first character of a every substring (while keeping case of other letters)
+        s = ' '.join(substr[:1].upper() + substr[1:] for substr in s.split(' '))
+        # Remove white space
+        s = s.replace(" ", "")
+    if firstLetterCase == 'upper':
+        # Uppercase first character of complete string
+        return ''.join([s[0].upper(), s[1:]])
+    elif firstLetterCase == 'lower':
+        # Lowercase first character of complete string
+        return ''.join([s[0].lower(), s[1:]])
+    else:
+        return s
+
+
+def camel_case_vocabulary_resource(str):
+    """
+    Helper function to transform a given vocabulary resource string
+    to camelCase while leaving vocabulary untouched, e.g.: vocabulary:ResourceName
+    :param str: given string to transform
+    :return: Transformed string
+    """
+    if len(str.split(':', 1)) == 2:
+        tmp_voc = str.split(':', 1)[0]
+        tmp_res = upper_camel_case(str.split(':', 1)[-1])
+        return ''.join(tmp_voc + ':' + tmp_res)
+    else:
+        return upper_camel_case(str)
+
+
+def lower_camel_case(str):
+    return camel_case(str, 'lower')
+
+
+def upper_camel_case(str):
+    return camel_case(str, 'upper')
+
+
+
+
+
 def process_richtext(utf8str: str, textattr: str = None, resptrs: List = []) -> (str, str):
     if textattr is not None:
         attributes = json.loads(textattr)
