@@ -493,7 +493,8 @@ class Salsah:
                     if self.resptrs.get(salsah_restype_info[restype_id]['name']) is not None:
                         tmp = self.resptrs[salsah_restype_info[restype_id]['name']]
                         if tmp.get('salsah:part_of') is not None:
-                            knora_object = tmp['salsah:part_of']
+                            knora_object = camel_case_vocabulary_resource(tmp['salsah:part_of'])
+                            prop["name"] = 'isPartOf' + knora_object.replace(vocname + ':', '')
                     else:
                         knora_object = 'FIXME--Resource--FIXME'
                         print("WARNING: Resclass {} has resptr {} with no object!!!".format(

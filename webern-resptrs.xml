@@ -1,0 +1,17 @@
+<resptres vocabulary="webern">
+    <resource name="webern:digitalcopy_correspondence">
+        <property name="salsah:part_of">webern:transcription_test</property>
+    </resource>
+    <resource name="webern:digitalcopy_musical_piece">
+        <property name="salsah:part_of">webern:convolute</property>
+    </resource>
+    <resource name="webern:digitalcopy_supplement">
+        <property name="salsah:part_of">webern:supplement</property>
+    </resource>
+    <resource name="webern:digitalcopy_editedtext">
+        <property name="salsah:part_of">webern:edited_text</property>
+    </resource>
+    <resource name="webern:digitalcopy_sourcedescription">
+        <property name="salsah:part_of">webern:ed_sourcedescription_ms</property>
+    </resource>
+</resptres>
