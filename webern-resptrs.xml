@@ -12,6 +12,6 @@
         <property name="salsah:part_of">webern:edited_text</property>
     </resource>
     <resource name="webern:digitalcopy_sourcedescription">
-        <property name="salsah:part_of">webern:ed_sourcedescription_ms</property>
+        <property name="salsah:part_of">webern:source_description_manuscript</property>
     </resource>
 </resptres>
