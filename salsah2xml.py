@@ -108,7 +108,7 @@ etags: Dict = {
 }
 
 
-def camel_case(str: str, firstLetterCase = None):
+def camel_case(str: str, firstLetterCase = None) -> str:
     """
     Helper function to transform a given string str to camelCase.
     firstLetterCase can take values 'upper' and 'lower'.
@@ -143,7 +143,7 @@ def camel_case(str: str, firstLetterCase = None):
         return s
 
 
-def camel_case_vocabulary_resource(str):
+def camel_case_vocabulary_resource(str) -> str:
     """
     Helper function to transform a given vocabulary resource string
     to camelCase while leaving vocabulary untouched, e.g.: vocabulary:ResourceName
@@ -158,11 +158,11 @@ def camel_case_vocabulary_resource(str):
         return upper_camel_case(str)
 
 
-def lower_camel_case(str):
+def lower_camel_case(str) -> str:
     return camel_case(str, 'lower')
 
 
-def upper_camel_case(str):
+def upper_camel_case(str) -> str:
     return camel_case(str, 'upper')
 
 
