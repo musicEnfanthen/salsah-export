@@ -108,6 +108,64 @@ etags: Dict = {
 }
 
 
+def camel_case(str: str, firstLetterCase = None) -> str:
+    """
+    Helper function to transform a given string str to camelCase.
+    firstLetterCase can take values 'upper' and 'lower'.
+    :param str: given string to transform
+    :return: Transformed string (lowerCamelCase or UpperCamelCase
+
+    :example:
+    str = "transcriptionTest-for_endLess DeLuxe"
+    str2 = "TranscriptionTest"
+
+    camelCase(str, 'lower')) --> transcriptionTestForEndLessDeLuxe
+    camelCase(str2, 'lower') --> transcriptionTest
+    camelCase(str, 'upper') --> TranscriptionTestForEndLessDeLuxe
+    camelCase(str2, 'upper') --> TranscriptionTest
+    """
+    s = str
+    # Look for underscores, hyphens or white space
+    if search(r"(_|-|\s)+", str):
+        # Convert _ and - to white space
+        s = sub(r"(_|-)+", " ", str)
+        # Capitalize first character of a every substring (while keeping case of other letters)
+        s = ' '.join(substr[:1].upper() + substr[1:] for substr in s.split(' '))
+        # Remove white space
+        s = s.replace(" ", "")
+    if firstLetterCase == 'upper':
+        # Uppercase first character of complete string
+        return ''.join([s[0].upper(), s[1:]])
+    elif firstLetterCase == 'lower':
+        # Lowercase first character of complete string
+        return ''.join([s[0].lower(), s[1:]])
+    else:
+        return s
+
+
+def camel_case_vocabulary_resource(str) -> str:
+    """
+    Helper function to transform a given vocabulary resource string
+    to camelCase while leaving vocabulary untouched, e.g.: vocabulary:ResourceName
+    :param str: given string to transform
+    :return: Transformed string
+    """
+    if len(str.split(':', 1)) == 2:
+        tmp_voc = str.split(':', 1)[0]
+        tmp_res = upper_camel_case(str.split(':', 1)[-1])
+        return ''.join(tmp_voc + ':' + tmp_res)
+    else:
+        return upper_camel_case(str)
+
+
+def lower_camel_case(str) -> str:
+    return camel_case(str, 'lower')
+
+
+def upper_camel_case(str) -> str:
+    return camel_case(str, 'upper')
+
+
 def process_richtext(utf8str: str, textattr: str = None, resptrs: List = []) -> (str, str):
     if textattr is not None:
         attributes = json.loads(textattr)
@@ -367,6 +425,31 @@ class Salsah:
 
         return project_container
 
+    def prepare_property_name(self, name: str) -> str:
+        # properties to prefix with 'is' (adjustable for projects)
+        is_prefix_map = [
+            'preopus_of',
+            'published_in',
+            'part_of_convolute'
+        ]
+
+        pname = name
+        # strip end of property names if necessary (adjustable for projects)
+        if pname.endswith('_rt'):
+            pname = pname.replace('_rt', '')
+        elif pname.endswith('_hl'):
+            pname = pname.replace('_hl', '')
+
+        # prefix property names with 'has' or 'is'
+        if pname.startswith('has') or pname.startswith('is'):
+            return lower_camel_case(pname)
+        else:
+            if pname in is_prefix_map:
+                return 'is' + upper_camel_case(pname)
+            else:
+                return 'has' + upper_camel_case(pname)
+
+
     def get_properties_of_resourcetype(self, vocname: str, restype_id: int, salsah_restype_info: dict) -> list:
 
         gui_attr_lut = {
@@ -388,10 +471,8 @@ class Salsah:
         for property in salsah_restype_info[restype_id]['properties']:
             if property['name'] == '__location__':
                 continue
-            if property['name'].startswith('has'):
-                pname = property['name']
-            else:
-                pname = 'has' + property['name'].capitalize()
+
+            pname = self.prepare_property_name(property['name'])
 
             prop = {
                 'name': pname,
@@ -432,7 +513,8 @@ class Salsah:
                     if self.resptrs.get(salsah_restype_info[restype_id]['name']) is not None:
                         tmp = self.resptrs[salsah_restype_info[restype_id]['name']]
                         if tmp.get('salsah:part_of') is not None:
-                            knora_object = tmp['salsah:part_of']
+                            knora_object = camel_case_vocabulary_resource(tmp['salsah:part_of'])
+                            prop["name"] = 'isPartOf' + knora_object.replace(vocname + ':', '')
                     else:
                         knora_object = 'FIXME--Resource--FIXME'
                         print("WARNING: Resclass {} has resptr {} with no object!!!".format(
@@ -514,7 +596,7 @@ class Salsah:
                                 knora_object = tmp[property['vocabulary'] + ':' + property['name'].capitalize()]
                             raise SalsahError("SALSAH-ERROR:\n\"restypeid\" is missing!")
                         (voc, restype) = salsah_restype_info[attrdict['restypeid']]['name'].split(':')
-                        knora_object = voc + ':' + restype.capitalize()
+                        knora_object = voc + ':' + upper_camel_case(restype)
                     if knora_object is None:
                         knora_object = 'FIXME--Resource--FIXME'
                         print("WARNING: Resclass {} has resptr {} with no object!".format(
@@ -636,7 +718,8 @@ class Salsah:
                     "SALSAH-ERROR:\n\"Invalid gui_element: " + property['gui_name'] + " by property " +
                     property['name'])
 
-            prop['super'] = knora_super
+            if knora_super:
+                prop['super'] = knora_super
             prop['object'] = knora_object
             prop['gui_element'] = gui_element
 
@@ -646,7 +729,7 @@ class Salsah:
             props.append(prop)
 
             cardinalities.append({
-                'propname': ':' + pname,
+                'propname': ':' + lower_camel_case(prop['name']),
                 'cardinality': property['occurrence'],
                 'gui_order': gui_order
             })
@@ -703,7 +786,7 @@ class Salsah:
             labels = dict(map(lambda a: (a['shortname'], a['label']), restype_info['label']))
 
             restype = {
-                'name': name.capitalize(),
+                'name': upper_camel_case(name),
                 'super': super,
                 'labels': labels
             }
@@ -1010,12 +1093,11 @@ class Salsah:
             if tmp[0] == self.vocabulary or tmp[0] == 'dc':
                 propname_new = tmp[1]  # strip vocabulary
                 #
-                # if the propname does not start with "has", add it to the propname. We have to do this
+                # if the propname does not start with "has" or is, add it to the propname. We have to do this
                 # to avoid naming conflicts between resources and properties which share the same
                 # namespace in GraphDB
                 #
-                if not propname_new.startswith('has'):
-                    propname_new = 'has' + propname_new.capitalize()
+                propname_new = self.prepare_property_name(propname_new)
             else:
                 propname_new = propname
             options: Dict[str, str] = {
@@ -1061,9 +1143,9 @@ class Salsah:
     def process_resource(self, resource: Dict, images_path: str, download: bool = True, verbose: bool = True):
         tmp = resource["resdata"]["restype_name"].split(':')
         if tmp[0] == self.vocabulary:
-            restype = tmp[1].capitalize()
+            restype = upper_camel_case(tmp[1])
         else:
-            restype = resource["resdata"]["restype_name"]
+            restype = upper_camel_case(resource["resdata"]["restype_name"])
         resnode = etree.Element('resource', {
             'restype': restype,
             'id': resource["resdata"]["res_id"],
