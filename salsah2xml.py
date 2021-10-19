@@ -171,7 +171,7 @@ def process_richtext(utf8str: str, textattr: str = None, resptrs: List = []) -> 
         attributes = json.loads(textattr)
         if len(attributes) == 0:
             return 'utf8', utf8str
-        attrlist: List= []
+        attrlist: List = []
         result: str = ''
         for key, vals in attributes.items():
             for val in vals:
@@ -208,7 +208,7 @@ def process_richtext(utf8str: str, textattr: str = None, resptrs: List = []) -> 
                 stack.append(attr)
             elif attr['type'] == 'end':
                 match = False
-                tmpstack: List= []
+                tmpstack: List = []
                 while True:
                     tmp = stack.pop()
                     result += etags[tmp['tagname']]
@@ -228,7 +228,7 @@ def process_richtext(utf8str: str, textattr: str = None, resptrs: List = []) -> 
                     result += new_string
                     stack.append(tmp)
             pos = attr['pos']
-        return 'hex64', base64.b64encode(result.encode())
+        return 'xml', result
     else:
         return 'utf8', utf8str
 
@@ -380,7 +380,9 @@ class Salsah:
                 "givenName": "test",
                 "familyName": "user",
                 "password": "test",
-                "lang": "en"
+                "lang": "en",
+                "groups": [],
+                "projects": []
             }]
         }
         if project_info['keywords'] is not None:
@@ -657,7 +659,7 @@ class Salsah:
                             gui_attributes[attr] = attrdict.get(attr)
                         # gui_attributes.append(attr + '=' + attrdict[attr])
             elif property['gui_name'] == 'pulldown':
-                gui_element = 'Pulldown'
+                gui_element = 'List'
                 for attr in gui_attr_lut['pulldown']:
                     if attrdict.get(attr) and attr == 'selection':
                         gui_attributes['hlist'] = self.selection_mapping[attrdict[attr]]
@@ -1080,6 +1082,10 @@ class Salsah:
             print('Comment: ' + comment)
             valele.set('comment', comment)
 
+        # Adds default permission for property
+        if valele is not None:
+            valele.set('permissions', "prop-default")
+
         return valele  # Das geht in die Resourcen
 
     def process_property(self, propname: str, property: Dict):
@@ -1101,7 +1107,7 @@ class Salsah:
             else:
                 propname_new = propname
             options: Dict[str, str] = {
-                'name': propname_new
+                'name': ":" + propname_new
             }
 
             if int(property["valuetype_id"]) == ValtypeMap.SELECTION.value:
@@ -1147,9 +1153,10 @@ class Salsah:
         else:
             restype = upper_camel_case(resource["resdata"]["restype_name"])
         resnode = etree.Element('resource', {
-            'restype': restype,
-            'id': resource["resdata"]["res_id"],
-            'label': resource['firstproperty']
+            'restype': ":" + restype,
+            'id': lower_camel_case(restype) + "_" + resource["resdata"]["res_id"],
+            'label': resource['firstproperty'].replace('\r', ''),
+            'permissions': "res-default"
         })
 
         if resource["resinfo"].get('locdata') is not None:
