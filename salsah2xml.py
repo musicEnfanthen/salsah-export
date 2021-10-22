@@ -1105,7 +1105,11 @@ class Salsah:
                 #
                 propname_new = self.prepare_property_name(propname_new)
             else:
-                propname_new = propname
+                if tmp[1] == "comment_rt" or tmp[1] == "comment":
+                    propname_new = tmp[1]  # strip vocabulary
+                    propname_new = self.prepare_property_name(propname_new)
+                else:
+                    propname_new = propname
             options: Dict[str, str] = {
                 'name': ":" + propname_new
             }
