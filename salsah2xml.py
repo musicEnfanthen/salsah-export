@@ -4,7 +4,6 @@ from pprint import pprint
 from re import sub, search
 from typing import List, Dict, Tuple
 import argparse
-import base64
 import jdcal
 import json
 import magic
@@ -175,10 +174,11 @@ def process_richtext(utf8str: str, textattr: str = None, resptrs: List = []) -> 
         result: str = ''
         for key, vals in attributes.items():
             for val in vals:
-                attr: Dict = {}
-                attr['tagname'] = key
-                attr['type'] = 'start'
-                attr['pos'] = int(val['start'])
+                attr: Dict = {
+                    'tagname': key,
+                    'type': 'start',
+                    'pos': int(val['start'])
+                }
                 if val.get('href'):
                     attr['href'] = val['href']
                 if val.get('resid'):
@@ -194,7 +194,7 @@ def process_richtext(utf8str: str, textattr: str = None, resptrs: List = []) -> 
                 attrlist.append(attr)
         attrlist = sorted(attrlist, key=lambda attr: attr['pos'])
         pos: int = 0
-        stack: List= []
+        stack: List = []
         for attr in attrlist:
             result += utf8str[pos:attr['pos']]
             if attr['type'] == 'start':
