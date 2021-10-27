@@ -6,3 +6,4 @@ requests
 jdcal
 python-magic-bin
 libmagic
+xlsxwriter

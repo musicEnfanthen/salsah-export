@@ -9,7 +9,7 @@ import sys
 
 photos = {}
 not_found = []
-input_excel_file = "KH Bestand Total_mit Jahr.xlsx"
+input_excel_file = "../KH Bestand Total_mit Jahr.xlsx"
 input_tab = "total bis 2006"
 starting_row = 0
 # ending_row = 1000
