@@ -107,6 +107,16 @@ etags: Dict = {
 }
 
 
+def save(file_name, data):
+    try:
+        # Writes the data into json file
+        with open(file_name, 'w') as outfile:
+            json.dump(data, outfile)
+    except Exception as err:
+        print(err, file_name)
+        raise SystemExit(0)
+
+
 def camel_case(str: str, firstLetterCase = None) -> str:
     """
     Helper function to transform a given string str to camelCase.
@@ -1299,6 +1309,9 @@ def program(args):
         con.process_resource(resource, images_path, args.download)
 
     con.write_xml()
+
+    # Writes all the resources to a json file (for debugging)
+    save(con.filename + "_all_resources.json", {'resources': resources})
 
 
 def main():
