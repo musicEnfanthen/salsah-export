@@ -1271,14 +1271,18 @@ def program(args):
 
     resptrs: Dict = {}
     if args.resptrs_file is not None:
-        tree = etree.parse(args.resptrs_file)
-        root = tree.getroot()
-        for restype in root:
-            restype_name = restype.attrib["name"].strip()
-            props: Dict = {}
-            for prop in restype:
-                props[prop.attrib["name"]] = prop.text.strip()
-            resptrs[restype.attrib["name"]] = props
+        resptrs_tree = etree.parse(args.resptrs_file, parser)
+        resptrs_root = resptrs_tree.getroot()
+        if resptrs_root.find('resource') is not None:
+            for restype in resptrs_root.findall('resource'):
+                restype_name = restype.attrib["name"].strip()
+                props: Dict = {}
+                for prop in restype:
+                    props[prop.attrib["name"]] = prop.text.strip()
+                resptrs[restype_name] = props
+        else:
+            print('No resources specified in given file: "{}"!'.format(args.resptrs_file))
+
     permissions: Dict = {}
     if args.permissions_file is not None:
         permissions_tree = etree.parse(args.permissions_file, parser)
