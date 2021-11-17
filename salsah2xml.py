@@ -297,28 +297,6 @@ class Salsah:
         self.hlist_node_mapping: Dict[str, str] = {}
         self.vocabulary: str = ""
 
-        # Prepare namespaces for XML root element
-        default_namespace = "https://dasch.swiss/schema"
-        xsi_namespace = "http://www.w3.org/2001/XMLSchema-instance"
-        nsmap: Dict = {
-            None: default_namespace,
-            'xsi': xsi_namespace,
-        }
-        xsi_schema_location_qname = etree.QName(xsi_namespace, "schemaLocation")
-        xsi_schema_location_url = "https://dasch.swiss/schema https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/knora/dsplib/schemas/data.xsd"
-
-        # Create root element with namespaces for XML file
-        self.root = etree.Element('knora', nsmap=nsmap)
-
-        # Add xsi:schemaLocation attribute to root element of XML file
-        self.root.set(xsi_schema_location_qname, xsi_schema_location_url)
-
-        # Add project shortcode to root element of XML file
-        self.root.set('shortcode', self.shortcode)
-
-        self.mime = magic.Magic(mime=True)
-        self.session = session
-
     def get_icon(self, iconsrc: str, name: str) -> str:
         """
         Get an icon from old SALSAH
@@ -414,8 +392,6 @@ class Salsah:
                 vocabulary = voc
 
         self.vocabulary = vocabulary['shortname']
-        # Add default ontology name (= project shortname) to root element of XML file
-        self.root.set('default-ontology', vocabulary['shortname'])
 
         # Get project selections
         project['lists'] = self.get_selections_of_vocabulary(vocabulary['shortname'])
@@ -1161,6 +1137,8 @@ class Salsah:
             return None
 
     def process_resource(self, resource: Dict, images_path: str, download: bool = True, verbose: bool = True):
+        self.prepare_xml_header()
+
         tmp = resource["resdata"]["restype_name"].split(':')
         if tmp[0] == self.vocabulary:
             restype = upper_camel_case(tmp[1])
@@ -1204,6 +1182,29 @@ class Salsah:
                 resnode.append(propnode)
         self.root.append(resnode)  # Das geht in die Resourcen
         print('Resource added. Id=' + resource["resdata"]["res_id"], flush=True)
+
+    def prepare_xml_header(self):
+        # Prepare namespaces for XML root element
+        default_namespace = "https://dasch.swiss/schema"
+        xsi_namespace = "http://www.w3.org/2001/XMLSchema-instance"
+        nsmap: Dict = {
+            None: default_namespace,
+            'xsi': xsi_namespace,
+        }
+        xsi_schema_location_qname = etree.QName(xsi_namespace, "schemaLocation")
+        xsi_schema_location_url = "https://dasch.swiss/schema https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/knora/dsplib/schemas/data.xsd"
+
+        # Create root element with namespaces for XML file
+        self.root = etree.Element('knora', nsmap=nsmap)
+
+        # Add xsi:schemaLocation attribute to root element of XML file
+        self.root.set(xsi_schema_location_qname, xsi_schema_location_url)
+
+        # Add project shortcode to root element of XML file
+        self.root.set('shortcode', self.shortcode)
+
+        # Add default ontology name (= project shortname) to root element of XML file
+        self.root.set('default-ontology', self.vocabulary)
 
     def write_xml(self):
         xml_filename = self.filename + '.xml'
