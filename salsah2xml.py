@@ -1146,6 +1146,8 @@ class Salsah:
             restype = upper_camel_case(tmp[1])
         else:
             restype = upper_camel_case(resource["resdata"]["restype_name"])
+
+        # Add resource nodes to XML
         resnode = etree.Element('resource', {
             'restype': ":" + restype,
             'id': lower_camel_case(restype) + "_" + resource["resdata"]["res_id"],
@@ -1181,6 +1183,7 @@ class Salsah:
         for propname in resource["props"]:
             propnode = self.process_property(propname, resource["props"][propname])  # process_property()
             if propnode is not None:
+                # Add property node to resource node in XML
                 resnode.append(propnode)
         self.root.append(resnode)  # Das geht in die Resourcen
         print('Resource added. Id=' + resource["resdata"]["res_id"], flush=True)
@@ -1226,8 +1229,8 @@ def program(args):
     parser.add_argument("-p", "--password", help="The password for login")
     parser.add_argument("-P", "--project", help="Shortname or ID of project")
     parser.add_argument("-s", "--shortcode", default='XXXX', help="Knora-shortcode of project")
-    parser.add_argument("-n", "--nrows", type=int, help="Number of records to get, -1 to get all")
     parser.add_argument("-S", "--start", type=int, help="Start at record with given number")
+    parser.add_argument("-n", "--nrows", type=int, help="Number of records to get, -1 to get all")
     parser.add_argument("-F", "--folder", default="-", help="Output folder")
     parser.add_argument("-r", "--resptrs_file", help="List of resptrs targets")
     parser.add_argument("-c", "--permissions_file", help="List of permission configurations")
