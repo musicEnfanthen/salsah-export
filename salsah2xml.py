@@ -394,17 +394,17 @@ class Salsah:
         self.vocabulary = vocabulary['shortname']
 
         # Get project selections
-        project['lists'] = self.get_selections_of_vocabulary(vocabulary['shortname'])
+        project['lists'] = self.get_selections_of_vocabulary(self.vocabulary)
 
         # ToDo: not yet implemented in create_ontology
         # if vocabulary.get('description') is not None and vocabulary['description']:
         #    project['ontologies']['comment'] = vocabulary['description']
 
-        prop, res = self.get_resourcetypes_of_vocabulary(vocabulary['shortname'])
+        prop, res = self.get_resourcetypes_of_vocabulary(self.vocabulary)
 
         project['ontologies'] = [{
-            'name': vocabulary['shortname'],
-            'label': vocabulary['longname'],
+            'name': self.vocabulary,
+            'label': self.vocabulary,
             'properties': prop,
             'resources': res
         }]
