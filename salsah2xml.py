@@ -267,6 +267,7 @@ class Salsah:
             projectname: str,
             shortcode: str,
             resptrs: dict,
+            permissions: dict,
             session: requests.Session) -> None:
 
         """
@@ -288,6 +289,7 @@ class Salsah:
         self.projectname: str = projectname
         self.shortcode: str = shortcode
         self.resptrs: List[str] = resptrs
+        self.permissions: List[str] = permissions
         self.session: requests.Session = session
 
         self.mime = magic.Magic(mime=True)
@@ -1206,6 +1208,10 @@ class Salsah:
         # Add default ontology name (= project shortname) to root element of XML file
         self.root.set('default-ontology', self.vocabulary)
 
+        # Add permission configurations
+        for permission in self.permissions:
+            self.root.append(self.permissions[permission])
+
     def write_xml(self):
         xml_filename = self.filename + '.xml'
         f = open(xml_filename, "wb")
@@ -1224,6 +1230,7 @@ def program(args):
     parser.add_argument("-S", "--start", type=int, help="Start at record with given number")
     parser.add_argument("-F", "--folder", default="-", help="Output folder")
     parser.add_argument("-r", "--resptrs_file", help="List of resptrs targets")
+    parser.add_argument("-c", "--permissions_file", help="List of permission configurations")
     parser.add_argument("-d", "--download", action="store_true", help="Download image files")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose feedback")
 
@@ -1255,6 +1262,10 @@ def program(args):
     nrows = -1 if args.nrows is None else args.nrows
     project = args.project
 
+    # select a parser and make it remove whitespace
+    # to discard xml file formatting
+    parser = etree.XMLParser(remove_blank_text=True)
+
     resptrs: Dict = {}
     if args.resptrs_file is not None:
         tree = etree.parse(args.resptrs_file)
@@ -1265,6 +1276,16 @@ def program(args):
             for prop in restype:
                 props[prop.attrib["name"]] = prop.text.strip()
             resptrs[restype.attrib["name"]] = props
+    permissions: Dict = {}
+    if args.permissions_file is not None:
+        permissions_tree = etree.parse(args.permissions_file, parser)
+        permissions_root = permissions_tree.getroot()
+        if permissions_root.find('permissions') is not None:
+            for permission in permissions_root.findall('permissions'):
+                permission_name = permission.attrib["id"].strip()
+                permissions[permission_name] = permission
+        else:
+            print('No permissions specified in given file: "{}"!'.format(args.permissions_file))
 
     if args.folder == '-':
         folder = args.project + ".dir"
@@ -1291,7 +1312,7 @@ def program(args):
 
     con = Salsah(server=args.server, user=user, password=password, filename=outfile_path,
                  assets_path=assets_path, projectname=args.project, shortcode=shortcode,
-                 resptrs=resptrs, session=session)
+                 resptrs=resptrs, permissions=permissions, session=session)
     proj = con.get_project()
     # proj['project']['ontologies'].update({'resources': con.get_resourcetypes_of_vocabulary(proj['project']['shortname'], session)})
 
