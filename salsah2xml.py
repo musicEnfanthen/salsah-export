@@ -1171,7 +1171,7 @@ class Salsah:
             restype = upper_camel_case(resource["resdata"]["restype_name"])
         resnode = etree.Element('resource', {
             'restype': ":" + restype,
-            'id': lower_camel_case(restype) + "_" + resource["resdata"]["res_id"],
+            'id': self.projectname + "_" + resource["resdata"]["res_id"],
             'label': resource['firstproperty'].replace('\r', ''),
             'permissions': "res-default"
         })
