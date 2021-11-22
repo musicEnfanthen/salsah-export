@@ -917,31 +917,53 @@ class Salsah:
 
         return selections_container
 
-    def get_all_obj_ids(self, project: str, start_at: int = 0, show_nrows: int = -1):
+    def get_all_obj_ids(self, project: str, show_n_rows: int = 0, start_at: int = 0):
         """
         Get all resource id's from project
         :param project: Project name
         :param start_at: Start at given resource
-        :param show_nrows: Show n resources
+        :param show_n_rows: Show n resources
         :return:
         """
+        max_res = 1000
+
+        nhits = None
+        all_obj_ids = []
+
         payload = {
             'searchtype': 'extended',
             'filter_by_project': project
         }
 
-        if show_nrows > 0:
-            payload['show_nrows'] = show_nrows
-            payload['start_at'] = start_at
+        if show_n_rows <= 0:
+            show_n_rows = max_res
 
+        max_round = show_n_rows // max_res
+        cur_round = 0
+        while cur_round < max_round:
+            payload['show_nrows'] = max_res
+            payload['start_at'] = start_at + cur_round * max_res
+            nhits, obj_ids = self.get_one_obj_ids(payload)
+            all_obj_ids = all_obj_ids + obj_ids
+            cur_round = cur_round + 1
+
+        leftover = show_n_rows % max_res
+        if leftover > 0:
+            payload['show_nrows'] = leftover
+            payload['start_at'] = start_at + cur_round * max_res
+            nhits, obj_ids = self.get_one_obj_ids(payload)
+            all_obj_ids = all_obj_ids + obj_ids
+
+        return nhits, all_obj_ids
+
+    def get_one_obj_ids(self, payload: Dict):
         req = self.session.get(self.server + '/api/search/', params=payload, auth=(self.user, self.password))
         result = req.json()
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
         else:
-            nhits = result['nhits']
             obj_ids = list(map(lambda a: a['obj_id'], result['subjects']))
-            return (nhits, obj_ids)
+            return result['nhits'], obj_ids
 
     def get_resource(self, res_id: int, verbose: bool = True) -> Dict:
         payload = {
@@ -1299,7 +1321,7 @@ def program(args):
 
     con.write_json(proj)
 
-    (nhits, res_ids) = con.get_all_obj_ids(project, start, nrows)
+    (nhits, res_ids) = con.get_all_obj_ids(project, nrows, start)
     print("nhits=", nhits)
     print("Got all resource id's")
 
