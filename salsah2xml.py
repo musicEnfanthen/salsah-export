@@ -267,6 +267,7 @@ class Salsah:
             projectname: str,
             shortcode: str,
             resptrs: dict,
+            permissions: dict,
             session: requests.Session) -> None:
 
         """
@@ -288,6 +289,7 @@ class Salsah:
         self.projectname: str = projectname
         self.shortcode: str = shortcode
         self.resptrs: List[str] = resptrs
+        self.permissions: List[str] = permissions
         self.session: requests.Session = session
 
         self.mime = magic.Magic(mime=True)
@@ -296,28 +298,6 @@ class Salsah:
         self.hlist_mapping: Dict[str, str] = {}
         self.hlist_node_mapping: Dict[str, str] = {}
         self.vocabulary: str = ""
-
-        # Prepare namespaces for XML root element
-        default_namespace = "https://dasch.swiss/schema"
-        xsi_namespace = "http://www.w3.org/2001/XMLSchema-instance"
-        nsmap: Dict = {
-            None: default_namespace,
-            'xsi': xsi_namespace,
-        }
-        xsi_schema_location_qname = etree.QName(xsi_namespace, "schemaLocation")
-        xsi_schema_location_url = "https://dasch.swiss/schema https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/knora/dsplib/schemas/data.xsd"
-
-        # Create root element with namespaces for XML file
-        self.root = etree.Element('knora', nsmap=nsmap)
-
-        # Add xsi:schemaLocation attribute to root element of XML file
-        self.root.set(xsi_schema_location_qname, xsi_schema_location_url)
-
-        # Add project shortcode to root element of XML file
-        self.root.set('shortcode', self.shortcode)
-
-        self.mime = magic.Magic(mime=True)
-        self.session = session
 
     def get_icon(self, iconsrc: str, name: str) -> str:
         """
@@ -414,21 +394,19 @@ class Salsah:
                 vocabulary = voc
 
         self.vocabulary = vocabulary['shortname']
-        # Add default ontology name (= project shortname) to root element of XML file
-        self.root.set('default-ontology', vocabulary['shortname'])
 
         # Get project selections
-        project['lists'] = self.get_selections_of_vocabulary(vocabulary['shortname'])
+        project['lists'] = self.get_selections_of_vocabulary(self.vocabulary)
 
         # ToDo: not yet implemented in create_ontology
         # if vocabulary.get('description') is not None and vocabulary['description']:
         #    project['ontologies']['comment'] = vocabulary['description']
 
-        prop, res = self.get_resourcetypes_of_vocabulary(vocabulary['shortname'])
+        prop, res = self.get_resourcetypes_of_vocabulary(self.vocabulary)
 
         project['ontologies'] = [{
-            'name': vocabulary['shortname'],
-            'label': vocabulary['longname'],
+            'name': self.vocabulary,
+            'label': self.vocabulary,
             'properties': prop,
             'resources': res
         }]
@@ -1186,11 +1164,15 @@ class Salsah:
             return None
 
     def process_resource(self, resource: Dict, images_path: str, download: bool = True, verbose: bool = True):
+        self.prepare_xml_header()
+
         tmp = resource["resdata"]["restype_name"].split(':')
         if tmp[0] == self.vocabulary:
             restype = upper_camel_case(tmp[1])
         else:
             restype = upper_camel_case(resource["resdata"]["restype_name"])
+
+        # Add resource nodes to XML
         resnode = etree.Element('resource', {
             'restype': ":" + restype,
             'id': self.projectname + "_" + resource["resdata"]["res_id"],
@@ -1226,9 +1208,37 @@ class Salsah:
         for propname in resource["props"]:
             propnode = self.process_property(propname, resource["props"][propname])  # process_property()
             if propnode is not None:
+                # Add property node to resource node in XML
                 resnode.append(propnode)
         self.root.append(resnode)  # Das geht in die Resourcen
         print('Resource added. Id=' + resource["resdata"]["res_id"], flush=True)
+
+    def prepare_xml_header(self):
+        # Prepare namespaces for XML root element
+        default_namespace = "https://dasch.swiss/schema"
+        xsi_namespace = "http://www.w3.org/2001/XMLSchema-instance"
+        nsmap: Dict = {
+            None: default_namespace,
+            'xsi': xsi_namespace,
+        }
+        xsi_schema_location_qname = etree.QName(xsi_namespace, "schemaLocation")
+        xsi_schema_location_url = "https://dasch.swiss/schema https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/knora/dsplib/schemas/data.xsd"
+
+        # Create root element with namespaces for XML file
+        self.root = etree.Element('knora', nsmap=nsmap)
+
+        # Add xsi:schemaLocation attribute to root element of XML file
+        self.root.set(xsi_schema_location_qname, xsi_schema_location_url)
+
+        # Add project shortcode to root element of XML file
+        self.root.set('shortcode', self.shortcode)
+
+        # Add default ontology name (= project shortname) to root element of XML file
+        self.root.set('default-ontology', self.vocabulary)
+
+        # Add permission configurations
+        for permission in self.permissions:
+            self.root.append(self.permissions[permission])
 
     def write_xml(self):
         xml_filename = self.filename + '.xml'
@@ -1244,10 +1254,11 @@ def program(args):
     parser.add_argument("-p", "--password", help="The password for login")
     parser.add_argument("-P", "--project", help="Shortname or ID of project")
     parser.add_argument("-s", "--shortcode", default='XXXX', help="Knora-shortcode of project")
-    parser.add_argument("-n", "--nrows", type=int, help="Number of records to get, -1 to get all")
     parser.add_argument("-S", "--start", type=int, help="Start at record with given number")
+    parser.add_argument("-n", "--nrows", type=int, help="Number of records to get, -1 to get all")
     parser.add_argument("-F", "--folder", default="-", help="Output folder")
     parser.add_argument("-r", "--resptrs_file", help="List of resptrs targets")
+    parser.add_argument("-c", "--permissions_file", help="List of permission configurations")
     parser.add_argument("-d", "--download", action="store_true", help="Download image files")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose feedback")
 
@@ -1279,16 +1290,34 @@ def program(args):
     nrows = -1 if args.nrows is None else args.nrows
     project = args.project
 
+    # select a parser and make it remove whitespace
+    # to discard xml file formatting
+    parser = etree.XMLParser(remove_blank_text=True)
+
     resptrs: Dict = {}
     if args.resptrs_file is not None:
-        tree = etree.parse(args.resptrs_file)
-        root = tree.getroot()
-        for restype in root:
-            restype_name = restype.attrib["name"].strip()
-            props: Dict = {}
-            for prop in restype:
-                props[prop.attrib["name"]] = prop.text.strip()
-            resptrs[restype.attrib["name"]] = props
+        resptrs_tree = etree.parse(args.resptrs_file, parser)
+        resptrs_root = resptrs_tree.getroot()
+        if resptrs_root.find('resource') is not None:
+            for restype in resptrs_root.findall('resource'):
+                restype_name = restype.attrib["name"].strip()
+                props: Dict = {}
+                for prop in restype:
+                    props[prop.attrib["name"]] = prop.text.strip()
+                resptrs[restype_name] = props
+        else:
+            print('No resources specified in given file: "{}"!'.format(args.resptrs_file))
+
+    permissions: Dict = {}
+    if args.permissions_file is not None:
+        permissions_tree = etree.parse(args.permissions_file, parser)
+        permissions_root = permissions_tree.getroot()
+        if permissions_root.find('permissions') is not None:
+            for permission in permissions_root.findall('permissions'):
+                permission_name = permission.attrib["id"].strip()
+                permissions[permission_name] = permission
+        else:
+            print('No permissions specified in given file: "{}"!'.format(args.permissions_file))
 
     if args.folder == '-':
         folder = args.project + ".dir"
@@ -1315,7 +1344,7 @@ def program(args):
 
     con = Salsah(server=args.server, user=user, password=password, filename=outfile_path,
                  assets_path=assets_path, projectname=args.project, shortcode=shortcode,
-                 resptrs=resptrs, session=session)
+                 resptrs=resptrs, permissions=permissions, session=session)
     proj = con.get_project()
     # proj['project']['ontologies'].update({'resources': con.get_resourcetypes_of_vocabulary(proj['project']['shortname'], session)})
 
