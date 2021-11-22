@@ -175,7 +175,7 @@ def upper_camel_case(str) -> str:
     return camel_case(str, 'upper')
 
 
-def process_richtext(utf8str: str, textattr: str = None, resptrs: List = []) -> (str, str):
+def process_richtext(utf8str: str, projectname: str, textattr: str = None, resptrs: List = []) -> (str, str):
     if textattr is not None:
         attributes = json.loads(textattr)
         if len(attributes) == 0:
@@ -210,7 +210,7 @@ def process_richtext(utf8str: str, textattr: str = None, resptrs: List = []) -> 
             if attr['type'] == 'start':
                 if attr['tagname'] == '_link':
                     if attr.get('resid') is not None:
-                        result += stags[attr['tagname']][1].format(attr['resid'])
+                        result += stags[attr['tagname']][1].format(projectname+ '_' + attr['resid'])
                     else:
                         result += stags[attr['tagname']][0].format(attr['href'])
                 else:
@@ -986,8 +986,10 @@ class Salsah:
                 resptrs = value['resource_reference']
                 encoding, valele.text = process_richtext(
                     utf8str=value.get('utf8str').strip(),
+                    projectname=self.projectname,
                     textattr=value.get('textattr').strip(),
-                    resptrs=value.get('resptrs'))
+                    resptrs=value.get('resptrs')
+                    )
                 resrefs = '|'.join(value['resource_reference'])
                 if len(resrefs) > 0:
                     valele.set('resrefs', resrefs)
