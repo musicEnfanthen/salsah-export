@@ -108,8 +108,13 @@ etags: Dict = {
 
 
 def save(file_name, data):
+    """
+    Writes the data into a json file
+
+    :param file_name: Name must include ending. Ex. 'output.json'
+    :param data:
+    """
     try:
-        # Writes the data into json file
         with open(file_name, 'w') as outfile:
             json.dump(data, outfile)
     except Exception as err:
@@ -121,7 +126,7 @@ def camel_case(str: str, firstLetterCase = None) -> str:
     """
     Helper function to transform a given string str to camelCase.
     firstLetterCase can take values 'upper' and 'lower'.
-    :param str: given string to transform
+    :param str: Given string to transform
     :return: Transformed string (lowerCamelCase or UpperCamelCase
 
     :example:
@@ -156,6 +161,7 @@ def camel_case_vocabulary_resource(str) -> str:
     """
     Helper function to transform a given vocabulary resource string
     to camelCase while leaving vocabulary untouched, e.g.: vocabulary:ResourceName
+
     :param str: given string to transform
     :return: Transformed string
     """
@@ -175,7 +181,7 @@ def upper_camel_case(str) -> str:
     return camel_case(str, 'upper')
 
 
-def process_richtext(utf8str: str, textattr: str = None, resptrs: List = []) -> (str, str):
+def process_rich_text(utf8str: str, textattr: str = None, resptrs: List = []) -> (str, str):
     if textattr is not None:
         attributes = json.loads(textattr)
         if len(attributes) == 0:
@@ -244,7 +250,6 @@ def process_richtext(utf8str: str, textattr: str = None, resptrs: List = []) -> 
 
 
 class Richtext:
-
     def __init__(self) -> None:
         super().__init__()
 
@@ -299,9 +304,12 @@ class Salsah:
         self.hlist_node_mapping: Dict[str, str] = {}
         self.vocabulary: str = ""
 
+        self.root = self.get_xml_header()
+
     def get_icon(self, iconsrc: str, name: str) -> str:
         """
         Get an icon from old SALSAH
+
         :param iconsrc: URL for icon in old SALSAH
         :param name: nameof the icon
         :return: Path to the icon on local disk
@@ -333,6 +341,7 @@ class Salsah:
     def get_project(self) -> dict:
         """
         Get project info
+
         :return: Project information that can be dumped as json for knora-create-ontology"
         """
         #
@@ -441,7 +450,6 @@ class Salsah:
 
 
     def get_properties_of_resourcetype(self, vocname: str, restype_id: int, salsah_restype_info: dict) -> list:
-
         gui_attr_lut = {
             'text': ['size', 'maxlength'],
             'textarea': ['width', 'rows', 'wrap'],
@@ -454,8 +462,8 @@ class Salsah:
             'interval': ['duration']
         }
 
-        props: List= []
-        cardinalities: List= []
+        props: List = []
+        cardinalities: List = []
         gui_order: int = 1
 
         for property in salsah_restype_info[restype_id]['properties']:
@@ -804,7 +812,7 @@ class Salsah:
         just a hierarchical list without children...
 
         :param vocname: Vocabulary name
-        :param session: Session object
+
         :return: Python list of salsah selections and hlists as knora lists
         """
         #
@@ -898,6 +906,7 @@ class Salsah:
     def get_all_obj_ids(self, project: str, show_n_rows: int = 0, start_at: int = 0):
         """
         Get all resource id's from project
+
         :param project: Project name
         :param start_at: Start at given resource
         :param show_n_rows: Show n resources
@@ -984,7 +993,7 @@ class Salsah:
                 print("'richtext: {}".format(value.get('utf8str').strip()))
                 valele = etree.Element('text')
                 resptrs = value['resource_reference']
-                encoding, valele.text = process_richtext(
+                encoding, valele.text = process_rich_text(
                     utf8str=value.get('utf8str').strip(),
                     textattr=value.get('textattr').strip(),
                     resptrs=value.get('resptrs'))
@@ -1164,8 +1173,6 @@ class Salsah:
             return None
 
     def process_resource(self, resource: Dict, images_path: str, download: bool = True, verbose: bool = True):
-        self.prepare_xml_header()
-
         tmp = resource["resdata"]["restype_name"].split(':')
         if tmp[0] == self.vocabulary:
             restype = upper_camel_case(tmp[1])
@@ -1213,7 +1220,7 @@ class Salsah:
         self.root.append(resnode)  # Das geht in die Resourcen
         print('Resource added. Id=' + resource["resdata"]["res_id"], flush=True)
 
-    def prepare_xml_header(self):
+    def get_xml_header(self):
         # Prepare namespaces for XML root element
         default_namespace = "https://dasch.swiss/schema"
         xsi_namespace = "http://www.w3.org/2001/XMLSchema-instance"
@@ -1225,20 +1232,22 @@ class Salsah:
         xsi_schema_location_url = "https://dasch.swiss/schema https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/knora/dsplib/schemas/data.xsd"
 
         # Create root element with namespaces for XML file
-        self.root = etree.Element('knora', nsmap=nsmap)
+        root_element = etree.Element('knora', nsmap=nsmap)
 
         # Add xsi:schemaLocation attribute to root element of XML file
-        self.root.set(xsi_schema_location_qname, xsi_schema_location_url)
+        root_element.set(xsi_schema_location_qname, xsi_schema_location_url)
 
         # Add project shortcode to root element of XML file
-        self.root.set('shortcode', self.shortcode)
+        root_element.set('shortcode', self.shortcode)
 
         # Add default ontology name (= project shortname) to root element of XML file
-        self.root.set('default-ontology', self.vocabulary)
+        root_element.set('default-ontology', self.vocabulary)
 
         # Add permission configurations
         for permission in self.permissions:
-            self.root.append(self.permissions[permission])
+            root_element.append(self.permissions[permission])
+
+        return root_element
 
     def write_xml(self):
         xml_filename = self.filename + '.xml'
@@ -1350,7 +1359,7 @@ def program(args):
 
     con.write_json(proj)
 
-    (nhits, res_ids) = con.get_all_obj_ids(project, nrows, start)
+    nhits, res_ids = con.get_all_obj_ids(project, nrows, start)
     print("nhits=", nhits)
     print("Got all resource id's")
 
