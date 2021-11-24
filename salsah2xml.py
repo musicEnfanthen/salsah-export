@@ -11,7 +11,7 @@ import os
 import requests
 import shutil
 import sys
-
+from html import unescape
 requests.urllib3.disable_warnings(requests.urllib3.exceptions.InsecureRequestWarning)
 
 #
@@ -972,7 +972,7 @@ class Salsah:
         f.write(file_content)
         f.close()
 
-    def process_value(self, valtype: int, value: any, comment: str = None):
+    def process_value(self, valtype: int, value: any, verbose: bool, comment: str = None):
         valele = None
         if valtype == ValtypeMap.TEXT.value:
             if value:
@@ -981,7 +981,8 @@ class Salsah:
                 valele.set('encoding', 'utf8')
         elif valtype == ValtypeMap.RICHTEXT.value:
             if value.get('utf8str').strip():
-                print("'richtext: {}".format(value.get('utf8str').strip()))
+                if verbose:
+                    print("'richtext: {}".format(value.get('utf8str').strip()))
                 valele = etree.Element('text')
                 resptrs = value['resource_reference']
                 encoding, valele.text = process_richtext(
@@ -1087,11 +1088,13 @@ class Salsah:
                 valele = etree.Element('time')
                 valele.text = value
         else:
-            print('===========================')
-            pprint(value)
-            print('----------------------------')
+            if verbose:
+                print('===========================')
+                pprint(value)
+                print('----------------------------')
         if comment is not None:
-            print('Comment: ' + comment)
+            if verbose:
+                print('Comment: ' + comment)
             valele.set('comment', comment)
 
         # Adds default permission for property
@@ -1100,7 +1103,7 @@ class Salsah:
 
         return valele  # Das geht in die Resourcen
 
-    def process_property(self, propname: str, property: Dict):
+    def process_property(self, propname: str, property: Dict, verbose: bool):
         if propname == '__location__':
             return None
         if property.get("values") is not None:
@@ -1149,12 +1152,12 @@ class Salsah:
             cnt: int = 0
             for value in property["values"]:
                 if property['comments'][cnt]:
-                    valnode = self.process_value(int(property["valuetype_id"]), value, property['comments'][cnt])
+                    valnode = self.process_value(int(property["valuetype_id"]), value, verbose, property['comments'][cnt])
                     if valnode is not None:
                         propnode.append(valnode)
                         cnt += 1
                 else:
-                    valnode = self.process_value(int(property["valuetype_id"]), value)
+                    valnode = self.process_value(int(property["valuetype_id"]), value, verbose)
                     if valnode is not None:
                         propnode.append(valnode)
                         cnt += 1
@@ -1208,12 +1211,13 @@ class Salsah:
             resnode.append(image_node)
 
         for propname in resource["props"]:
-            propnode = self.process_property(propname, resource["props"][propname])  # process_property()
+            propnode = self.process_property(propname, resource["props"][propname], verbose)  # process_property()
             if propnode is not None:
                 # Add property node to resource node in XML
                 resnode.append(propnode)
         self.root.append(resnode)  # Das geht in die Resourcen
-        print('Resource added. Id=' + resource["resdata"]["res_id"], flush=True)
+        if verbose:
+            print('Resource added. Id=' + resource["resdata"]["res_id"], flush=True)
 
     def prepare_xml_header(self):
         # Prepare namespaces for XML root element
@@ -1244,8 +1248,9 @@ class Salsah:
 
     def write_xml(self):
         xml_filename = self.filename + '.xml'
-        f = open(xml_filename, "wb")
-        f.write(etree.tostring(self.root, pretty_print=True, xml_declaration=True, encoding='utf-8'))
+        f = open(xml_filename, "w")
+        #pprint(unescape(etree.tostring(self.root, pretty_print=True, xml_declaration=True, encoding='utf-8').decode('utf-8')))
+        f.write(unescape(etree.tostring(self.root, pretty_print=True, xml_declaration=True, encoding='utf-8').decode('utf-8')))
         f.close()
 
 
