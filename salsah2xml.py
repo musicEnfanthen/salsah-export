@@ -1179,13 +1179,19 @@ class Salsah:
         else:
             restype = upper_camel_case(resource["resdata"]["restype_name"])
 
-        # Add resource nodes to XML
-        resnode = etree.Element('resource', {
+        res_attributes = {
             'restype': ":" + restype,
             'id': self.projectname + "_" + resource["resdata"]["res_id"],
             'label': resource['firstproperty'].replace('\r', ''),
             'permissions': "res-default"
-        })
+        }
+
+        # Add ark attribute if existing to the resource node
+        if resource["resinfo"].get("handle_id") is not None:
+            res_attributes["ark"] = resource["resinfo"].get("handle_id")
+
+        # Add resource nodes to XML
+        resnode = etree.Element('resource', res_attributes)
 
         if resource["resinfo"].get('locdata') is not None:
             imgpath = os.path.join(images_path, resource["resinfo"]['locdata']['origname'])
