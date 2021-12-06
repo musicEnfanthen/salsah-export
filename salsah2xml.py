@@ -181,8 +181,7 @@ def upper_camel_case(str) -> str:
     return camel_case(str, 'upper')
 
 
-
-def process_richtext(utf8str: str, projectname: str, textattr: str = None, resptrs: List = []) -> (str, str):
+def process_rich_text(utf8str: str, projectname: str, textattr: str = None, resptrs: List = []) -> (str, str):
     if textattr is not None:
         attributes = json.loads(textattr)
         if len(attributes) == 0:
