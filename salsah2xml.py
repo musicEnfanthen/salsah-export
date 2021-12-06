@@ -1387,7 +1387,7 @@ def program(args):
     con.write_xml()
 
     # Writes all the resources to a json file (for debugging)
-    save(con.filename + "_all_resources.json", {'resources': resources})
+    # save(con.filename + "_all_resources.json", {'resources': resources})
 
 
 def main():
