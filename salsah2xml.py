@@ -1264,8 +1264,7 @@ class Salsah:
     def write_xml(self):
         xml_filename = self.filename + '.xml'
         f = open(xml_filename, "w")
-        #pprint(unescape(etree.tostring(self.root, pretty_print=True, xml_declaration=True, encoding='utf-8').decode('utf-8')))
-        f.write(unescape(etree.tostring(self.root, pretty_print=True, xml_declaration=True, encoding='utf-8').decode('utf-8')))
+        f.write(etree.tostring(self.root, pretty_print=True, xml_declaration=True, encoding='utf-8').decode('utf-8').replace('&lt;', '<').replace('&gt;', '>'))
         f.close()
 
 
