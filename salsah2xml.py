@@ -181,8 +181,7 @@ def upper_camel_case(str) -> str:
     return camel_case(str, 'upper')
 
 
-
-def process_richtext(utf8str: str, projectname: str, textattr: str = None, resptrs: List = []) -> (str, str):
+def process_rich_text(utf8str: str, projectname: str, textattr: str = None, resptrs: List = []) -> (str, str):
     if textattr is not None:
         attributes = json.loads(textattr)
         if len(attributes) == 0:
@@ -1185,13 +1184,19 @@ class Salsah:
         else:
             restype = upper_camel_case(resource["resdata"]["restype_name"])
 
-        # Add resource nodes to XML
-        resnode = etree.Element('resource', {
+        res_attributes = {
             'restype': ":" + restype,
             'id': self.projectname + "_" + resource["resdata"]["res_id"],
             'label': resource['firstproperty'].replace('\r', ''),
             'permissions': "res-default"
-        })
+        }
+
+        # Add ark attribute if existing to the resource node
+        if resource["resinfo"].get("handle_id") is not None:
+            res_attributes["ark"] = resource["resinfo"].get("handle_id")
+
+        # Add resource nodes to XML
+        resnode = etree.Element('resource', res_attributes)
 
         if resource["resinfo"].get('locdata') is not None:
             imgpath = os.path.join(images_path, resource["resinfo"]['locdata']['origname'])
@@ -1382,7 +1387,7 @@ def program(args):
     con.write_xml()
 
     # Writes all the resources to a json file (for debugging)
-    save(con.filename + "_all_resources.json", {'resources': resources})
+    # save(con.filename + "_all_resources.json", {'resources': resources})
 
 
 def main():
