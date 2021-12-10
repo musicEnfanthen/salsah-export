@@ -1,4 +1,4 @@
-<permissionsList vocabulary="webern">
+<permissionsList vocabulary="webern-onto">
     <permissions id="awg-res-default">
         <allow group="UnknownUser">V</allow>
         <allow group="KnownUser">V</allow>
