@@ -66,7 +66,7 @@ stags: Dict = {
     'linebreak': '<br/>',
     'strikethrough': '<strike>',
     'strike': '<strike>',
-    'style': '<span gaga={}>',
+    'style': '<span>',
     'ol': '<ol>',
     'ul': '<ul>',
     'li': '<li>',
