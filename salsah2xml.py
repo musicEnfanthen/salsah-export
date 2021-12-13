@@ -106,6 +106,8 @@ etags: Dict = {
     'h6': '</h6>'
 }
 
+allResAdded: Dict = {}
+
 
 def save(file_name, data):
     """
@@ -1178,25 +1180,36 @@ class Salsah:
             return None
 
     def process_resource(self, resource: Dict, images_path: str, download: bool = True, verbose: bool = True):
+        # Creates resource id and checks if was already added
+        res_id = f"{self.projectname}_{resource['resdata']['res_id']}"
+        if res_id in allResAdded:
+            return
+        else:
+            allResAdded[res_id] = True
+
+        # Creates resource type
         tmp = resource["resdata"]["restype_name"].split(':')
         if tmp[0] == self.vocabulary:
-            restype = upper_camel_case(tmp[1])
+            restype = f":{upper_camel_case(tmp[1])}"
         else:
-            restype = upper_camel_case(resource["resdata"]["restype_name"])
+            restype = f":{upper_camel_case(resource['resdata']['restype_name'])}"
+
+        # Creates resource label
+        res_label = resource['firstproperty'].replace('\r', '')
 
         res_attributes = {
-            'restype': ":" + restype,
-            'id': self.projectname + "_" + resource["resdata"]["res_id"],
-            'label': resource['firstproperty'].replace('\r', ''),
+            'restype': restype,
+            'id': res_id,
+            'label': res_label,
             'permissions': "res-default"
         }
 
-        # Add ark attribute if existing to the resource node
+        # Add ark attribute to the resource node if existing
         if resource["resinfo"].get("handle_id") is not None:
             res_attributes["ark"] = resource["resinfo"].get("handle_id")
 
         # Add resource nodes to XML
-        resnode = etree.Element('resource', res_attributes)
+        res_node = etree.Element('resource', res_attributes)
 
         if resource["resinfo"].get('locdata') is not None:
             imgpath = os.path.join(images_path, resource["resinfo"]['locdata']['origname'])
@@ -1221,14 +1234,15 @@ class Salsah:
 
             image_node = etree.Element('image')
             image_node.text = imgpath
-            resnode.append(image_node)
+            res_node.append(image_node)
 
         for propname in resource["props"]:
             propnode = self.process_property(propname, resource["props"][propname], verbose)  # process_property()
             if propnode is not None:
                 # Add property node to resource node in XML
-                resnode.append(propnode)
-        self.root.append(resnode)  # Das geht in die Resourcen
+                res_node.append(propnode)
+        self.root.append(res_node)  # Das geht in die Resourcen
+
         if verbose:
             print('Resource added. Id=' + resource["resdata"]["res_id"], flush=True)
 
