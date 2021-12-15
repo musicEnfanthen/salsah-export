@@ -983,20 +983,20 @@ class Salsah:
         f.write(file_content)
         f.close()
 
-    def process_value(self, valtype: int, value: any, verbose: bool, comment: str = None):
-        valele = None
-        if valtype == ValtypeMap.TEXT.value:
+    def process_value(self, val_type: int, value: any, verbose: bool, comment: str = None):
+        val_element = None
+        if val_type == ValtypeMap.TEXT.value:
             if value:
-                valele = etree.Element('text')
-                valele.text = value
-                valele.set('encoding', 'utf8')
-        elif valtype == ValtypeMap.RICHTEXT.value:
+                val_element = etree.Element('text')
+                val_element.text = value
+                val_element.set('encoding', 'utf8')
+        elif val_type == ValtypeMap.RICHTEXT.value:
             if value.get('utf8str').strip():
                 if verbose:
                     print("'richtext: {}".format(value.get('utf8str').strip()))
-                valele = etree.Element('text')
+                val_element = etree.Element('text')
                 resptrs = value['resource_reference']
-                encoding, valele.text = process_rich_text(
+                encoding, val_element.text = process_rich_text(
                     utf8str=value.get('utf8str').strip(),
                     projectname=self.projectname,
                     textattr=value.get('textattr').strip(),
@@ -1004,15 +1004,15 @@ class Salsah:
                     )
                 resrefs = '|'.join(value['resource_reference'])
                 if len(resrefs) > 0:
-                    valele.set('resrefs', resrefs)
-                valele.set('encoding', encoding)
-        elif valtype == ValtypeMap.COLOR.value:
+                    val_element.set('resrefs', resrefs)
+                val_element.set('encoding', encoding)
+        elif val_type == ValtypeMap.COLOR.value:
             if value:
-                valele = etree.Element('color')
-                valele.text = value
-        elif valtype == ValtypeMap.DATE.value:
+                val_element = etree.Element('color')
+                val_element.text = value
+        elif val_type == ValtypeMap.DATE.value:
             if value:
-                valele = etree.Element('date')
+                val_element = etree.Element('date')
                 cal: str
                 start: Tuple[int, int, int, float]
                 end: Tuple[int, int, int, float]
@@ -1054,50 +1054,50 @@ class Salsah:
                     if start[0] != end[0] or start[1] != end[1] or start[2] != end[2]:
                         endstr = ":{}:{:04d}-{:02d}-{:02d}".format(p2, end[0], end[1], end[2])
 
-                valele.text = startstr + endstr
-        elif valtype == ValtypeMap.FLOAT.value:
+                val_element.text = startstr + endstr
+        elif val_type == ValtypeMap.FLOAT.value:
             if value:
-                valele = etree.Element('float')
-                valele.text = value
-        elif valtype == ValtypeMap.GEOMETRY.value:
+                val_element = etree.Element('float')
+                val_element.text = value
+        elif val_type == ValtypeMap.GEOMETRY.value:
             if value:
-                valele = etree.Element('geometry')
-                valele.text = value
-        elif valtype == ValtypeMap.GEONAME.value:
+                val_element = etree.Element('geometry')
+                val_element.text = value
+        elif val_type == ValtypeMap.GEONAME.value:
             if value:
-                valele = etree.Element('geoname')
-                valele.text = value
-        elif valtype == ValtypeMap.HLIST.value:
+                val_element = etree.Element('geoname')
+                val_element.text = value
+        elif val_type == ValtypeMap.HLIST.value:
             if value:
-                valele = etree.Element('list')
-                valele.text = 'H_' + value
-        elif valtype == ValtypeMap.ICONCLASS.value:
+                val_element = etree.Element('list')
+                val_element.text = 'H_' + value
+        elif val_type == ValtypeMap.ICONCLASS.value:
             if value:
-                valele = etree.Element('iconclass')
-                valele.text = value
-        elif valtype == ValtypeMap.INTEGER.value:
+                val_element = etree.Element('iconclass')
+                val_element.text = value
+        elif val_type == ValtypeMap.INTEGER.value:
             if value:
-                valele = etree.Element('integer')
-                valele.text = value
-        elif valtype == ValtypeMap.INTERVAL.value:
+                val_element = etree.Element('integer')
+                val_element.text = value
+        elif val_type == ValtypeMap.INTERVAL.value:
             if value:
-                valele = etree.Element('interval')
-                valele.text = value
-        elif valtype == ValtypeMap.PERIOD.value:
-            valele = etree.Element('period')
+                val_element = etree.Element('interval')
+                val_element.text = value
+        elif val_type == ValtypeMap.PERIOD.value:
+            val_element = etree.Element('period')
             pass
-        elif valtype == ValtypeMap.RESPTR.value:
+        elif val_type == ValtypeMap.RESPTR.value:
             if value:
-                valele = etree.Element('resptr')
-                valele.text = value
-        elif valtype == ValtypeMap.SELECTION.value:
+                val_element = etree.Element('resptr')
+                val_element.text = value
+        elif val_type == ValtypeMap.SELECTION.value:
             if value:
-                valele = etree.Element('list')
-                valele.text = 'S_' + value
-        elif valtype == ValtypeMap.TIME.value:
+                val_element = etree.Element('list')
+                val_element.text = 'S_' + value
+        elif val_type == ValtypeMap.TIME.value:
             if value:
-                valele = etree.Element('time')
-                valele.text = value
+                val_element = etree.Element('time')
+                val_element.text = value
         else:
             if verbose:
                 print('===========================')
@@ -1106,41 +1106,42 @@ class Salsah:
         if comment is not None:
             if verbose:
                 print('Comment: ' + comment)
-            valele.set('comment', comment)
+            val_element.set('comment', comment)
 
         # Adds default permission for property
-        if valele is not None:
-            valele.set('permissions', "prop-default")
+        if val_element is not None:
+            val_element.set('permissions', "prop-default")
 
-        return valele  # Das geht in die Resourcen
+        return val_element
 
-    def process_property(self, propname: str, property: Dict, verbose: bool):
-        if propname == '__location__':
+    def process_property(self, prop_name: str, property: Dict, verbose: bool):
+        if prop_name == '__location__':
             return None
+
         if property.get("values") is not None:
             #
             # first we strip the vocabulary off, if it's not salsah, dc, etc.
             #
-            tmp = propname.split(':')
+            tmp = prop_name.split(':')
             if tmp[0] == self.vocabulary or tmp[0] == 'dc':
-                propname_new = tmp[1]  # strip vocabulary
+                new_prop_name = tmp[1]  # strip vocabulary
                 #
-                # if the propname does not start with "has" or is, add it to the propname. We have to do this
+                # if the prop_name does not start with "has" or is, add it to the prop_name. We have to do this
                 # to avoid naming conflicts between resources and properties which share the same
                 # namespace in GraphDB
                 #
-                propname_new = self.prepare_property_name(propname_new)
+                new_prop_name = self.prepare_property_name(new_prop_name)
             else:
                 if tmp[1] == "comment_rt" or tmp[1] == "comment":
-                    propname_new = tmp[1]  # strip vocabulary
-                    propname_new = self.prepare_property_name(propname_new)
+                    new_prop_name = tmp[1]  # strip vocabulary
+                    new_prop_name = self.prepare_property_name(new_prop_name)
                 elif tmp[1] == "lastname" or tmp[1] == "firstname":
-                    propname_new = tmp[1]
-                    propname_new = self.prepare_property_name(propname_new)
+                    new_prop_name = tmp[1]
+                    new_prop_name = self.prepare_property_name(new_prop_name)
                 else:
-                    propname_new = propname
+                    new_prop_name = prop_name
             options: Dict[str, str] = {
-                'name': ":" + propname_new
+                'name': ":" + new_prop_name
             }
 
             if int(property["valuetype_id"]) == ValtypeMap.SELECTION.value:
@@ -1159,21 +1160,21 @@ class Salsah:
                 pname = 'list-prop'
             else:
                 pname = Valtype.get(property["valuetype_id"]) + '-prop'
-            propnode = etree.Element(pname, options)
+            prop_element = etree.Element(pname, options)
             cnt: int = 0
             for value in property["values"]:
                 if property['comments'][cnt]:
-                    valnode = self.process_value(int(property["valuetype_id"]), value, verbose, property['comments'][cnt])
-                    if valnode is not None:
-                        propnode.append(valnode)
+                    val_element = self.process_value(int(property["valuetype_id"]), value, verbose, property['comments'][cnt])
+                    if val_element is not None:
+                        prop_element.append(val_element)
                         cnt += 1
                 else:
-                    valnode = self.process_value(int(property["valuetype_id"]), value, verbose)
-                    if valnode is not None:
-                        propnode.append(valnode)
+                    val_element = self.process_value(int(property["valuetype_id"]), value, verbose)
+                    if val_element is not None:
+                        prop_element.append(val_element)
                         cnt += 1
             if cnt > 0:
-                return propnode
+                return prop_element
             else:
                 return None
         else:
@@ -1208,8 +1209,8 @@ class Salsah:
         if resource["resinfo"].get("handle_id") is not None:
             res_attributes["ark"] = resource["resinfo"].get("handle_id")
 
-        # Add resource nodes to XML
-        res_node = etree.Element('resource', res_attributes)
+        # Create resource element with the attributes
+        res_element = etree.Element('resource', res_attributes)
 
         if resource["resinfo"].get('locdata') is not None:
             imag_path = os.path.join(images_path, resource["resinfo"]['locdata']['origname'])
@@ -1233,16 +1234,16 @@ class Salsah:
                         fd.write(chunk)
                     fd.close()
 
-            image_node = etree.Element('image')
-            image_node.text = imag_path
-            res_node.append(image_node)
+            image_element = etree.Element('image')
+            image_element.text = imag_path
+            res_element.append(image_element)
 
         for prop_name in resource["props"]:
-            prop_node = self.process_property(prop_name, resource["props"][prop_name], verbose)
-            if prop_node is not None:
-                res_node.append(prop_node)
+            prop_element = self.process_property(prop_name, resource["props"][prop_name], verbose)
+            if prop_element is not None:
+                res_element.append(prop_element)
 
-        self.root.append(res_node)
+        self.root.append(res_element)
 
         if verbose:
             print('Resource added. Id=' + resource["resdata"]["res_id"], flush=True)
