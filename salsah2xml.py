@@ -218,7 +218,7 @@ def process_rich_text(utf8str: str, projectname: str, textattr: str = None, resp
             if attr['type'] == 'start':
                 if attr['tagname'] == '_link':
                     if attr.get('resid') is not None:
-                        result += stags[attr['tagname']][1].format(projectname+ '_' + attr['resid'])
+                        result += stags[attr['tagname']][1].format(projectname + '_' + attr['resid'])
                     else:
                         result += stags[attr['tagname']][0].format(attr['href'])
                 else:
@@ -1179,7 +1179,7 @@ class Salsah:
         else:
             return None
 
-    def process_resource(self, resource: Dict, images_path: str, download: bool = True, verbose: bool = True):
+    def process_resource(self, resource: Dict, images_path: str, download: bool, verbose: bool):
         # Creates resource id and checks if was already added
         res_id = f"{self.projectname}_{resource['resdata']['res_id']}"
         if res_id in allResAdded:
@@ -1324,6 +1324,8 @@ def program(args):
     start = 0 if args.start is None else args.start
     nrows = -1 if args.nrows is None else args.nrows
     project = args.project
+    download = args.download
+    verbose = args.verbose
 
     # select a parser and make it remove whitespace
     # to discard xml file formatting
@@ -1395,7 +1397,7 @@ def program(args):
     resources = list(map(con.get_resource, res_ids))
 
     for resource in resources:
-        con.process_resource(resource, images_path, args.download)
+        con.process_resource(resource, images_path, download, verbose)
 
     con.write_xml()
 
