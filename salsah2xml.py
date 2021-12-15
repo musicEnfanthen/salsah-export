@@ -1212,36 +1212,37 @@ class Salsah:
         res_node = etree.Element('resource', res_attributes)
 
         if resource["resinfo"].get('locdata') is not None:
-            imgpath = os.path.join(images_path, resource["resinfo"]['locdata']['origname'])
+            imag_path = os.path.join(images_path, resource["resinfo"]['locdata']['origname'])
             ext = os.path.splitext(resource["resinfo"]['locdata']['origname'])[1][1:].strip().lower()
             if ext == 'jpg' or ext == 'jpeg':
-                format = 'jpg'
+                img_format = 'jpg'
             elif ext == 'png':
-                format = 'png'
+                img_format = 'png'
             elif ext == 'jp2' or ext == 'jpx':
-                format = 'jpx'
+                img_format = 'jpx'
             else:
-                format = 'tif'
-            getter = resource["resinfo"]['locdata']['path'] + '&format=' + format
+                img_format = 'tif'
+            getter = resource["resinfo"]['locdata']['path'] + '&format=' + img_format
+
             if download:
                 print('Downloading ' + resource["resinfo"]['locdata']['origname'] + '...')
                 dlfile2 = self.session.get(getter, stream=True)  # war urlretrieve()
 
-                with open(imgpath, 'w+b') as fd:
+                with open(imag_path, 'w+b') as fd:
                     for chunk in dlfile2.iter_content(chunk_size=128):
                         fd.write(chunk)
                     fd.close()
 
             image_node = etree.Element('image')
-            image_node.text = imgpath
+            image_node.text = imag_path
             res_node.append(image_node)
 
-        for propname in resource["props"]:
-            propnode = self.process_property(propname, resource["props"][propname], verbose)  # process_property()
-            if propnode is not None:
-                # Add property node to resource node in XML
-                res_node.append(propnode)
-        self.root.append(res_node)  # Das geht in die Resourcen
+        for prop_name in resource["props"]:
+            prop_node = self.process_property(prop_name, resource["props"][prop_name], verbose)
+            if prop_node is not None:
+                res_node.append(prop_node)
+
+        self.root.append(res_node)
 
         if verbose:
             print('Resource added. Id=' + resource["resdata"]["res_id"], flush=True)
