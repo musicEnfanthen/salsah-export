@@ -124,11 +124,12 @@ def save(file_name, data):
         raise SystemExit(0)
 
 
-def camel_case(str: str, firstLetterCase = None) -> str:
+def camel_case(str: str, first_letter_case=None) -> str:
     """
     Helper function to transform a given string str to camelCase.
     firstLetterCase can take values 'upper' and 'lower'.
     :param str: Given string to transform
+    :param first_letter_case: Possible cases for the first letter are 'upper' and 'lower'
     :return: Transformed string (lowerCamelCase or UpperCamelCase
 
     :example:
@@ -149,10 +150,10 @@ def camel_case(str: str, firstLetterCase = None) -> str:
         s = ' '.join(substr[:1].upper() + substr[1:] for substr in s.split(' '))
         # Remove white space
         s = s.replace(" ", "")
-    if firstLetterCase == 'upper':
+    if first_letter_case == 'upper':
         # Uppercase first character of complete string
         return ''.join([s[0].upper(), s[1:]])
-    elif firstLetterCase == 'lower':
+    elif first_letter_case == 'lower':
         # Lowercase first character of complete string
         return ''.join([s[0].lower(), s[1:]])
     else:
