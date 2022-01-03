@@ -1234,7 +1234,7 @@ class Salsah:
                         fd.write(chunk)
                     fd.close()
 
-            image_element = etree.Element('image')
+            image_element = etree.Element('bitstream')
             image_element.text = imag_path
             res_element.append(image_element)
 
