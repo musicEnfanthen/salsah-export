@@ -347,20 +347,18 @@ class Salsah:
 
         :return: Project information that can be dumped as json for knora-create-ontology"
         """
-        #
+
         # first get all system ontologies
-        #
-        req = self.session.get(self.server + '/api/vocabularies/0?lang=all', auth=(self.user, self.password))
+        voc_url = f"{self.server}/api/vocabularies/0?lang=all"
+        req = self.session.get(voc_url, auth=(self.user, self.password))
         result = req.json()
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
         sysvocabularies = result['vocabularies']
 
-        #
         # get project info
-        #
-        req = self.session.get(self.server + '/api/projects/' + self.projectname + "?lang=all",
-                               auth=(self.user, self.password))
+        project_url = f"{self.server}/api/projects/{self.projectname}?lang=all"
+        req = self.session.get(project_url, auth=(self.user, self.password))
         result = req.json()
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
@@ -368,7 +366,7 @@ class Salsah:
         project_container: Dict = {
             "$schema": "https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/knora/dsplib/schemas/ontology.json",
             "prefixes": dict(map(lambda a: (a['shortname'], a['uri']), sysvocabularies)),
-            "project": { }, # will be filled below
+            "project": {}
         }
         project_info = result['project_info']  # Is this the project_container??? Decide later
         project: Dict = {
@@ -392,11 +390,10 @@ class Salsah:
         else:
             project['keywords'] = [result['project_info']['shortname']]
 
-        #
         # Get the vocabulary. The old Salsah uses only one vocabulary per project....
         # Note: the API call always returns also the system vocabularies which have to be excluded
-        #
-        req = self.session.get(self.server + '/api/vocabularies/' + self.projectname, auth=(self.user, self.password))
+        project_voc_url = f"{self.server}/api/vocabularies/{self.projectname}"
+        req = self.session.get(project_voc_url, auth=(self.user, self.password))
         result = req.json()
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
@@ -747,7 +744,8 @@ class Salsah:
             'vocabulary': vocname,
             'lang': 'all'
         }
-        req = self.session.get(self.server + '/api/resourcetypes/', params=payload, auth=(self.user, self.password))
+        res_types_url = f"{self.server}/api/resourcetypes"
+        req = self.session.get(res_types_url, params=payload, auth=(self.user, self.password))
         result = req.json()
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
@@ -759,8 +757,8 @@ class Salsah:
             payload: dict = {
                 'lang': 'all'
             }
-            req = self.session.get(self.server + '/api/resourcetypes/' + restype_id, params=payload,
-                                   auth=(self.user, self.password))
+            res_type_url = f"{self.server}/api/resourcetypes/{restype_id}"
+            req = self.session.get(res_type_url, params=payload, auth=(self.user, self.password))
             result = req.json()
             if result['status'] != 0:
                 raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
@@ -818,14 +816,14 @@ class Salsah:
 
         :return: Python list of salsah selections and hlists as knora lists
         """
-        #
-        # first we get the flat lists (selctions)
-        #
+
+        # first we get the flat lists (selections)
         payload = {
             'vocabulary': vocname,
             'lang': 'all'
         }
-        req = self.session.get(self.server + '/api/selections', params=payload, auth=(self.user, self.password))
+        selections_url = f"{self.server}/api/selections"
+        req = self.session.get(selections_url, params=payload, auth=(self.user, self.password))
         result = req.json()
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
@@ -844,8 +842,8 @@ class Salsah:
             if selection.get('description') is not None:
                 root['comments'] = dict(map(lambda a: (a['shortname'], a['description']), selection['description']))
             payload = {'lang': 'all'}
-            req_nodes = self.session.get(self.server + '/api/selections/' + selection['id'], params=payload,
-                                         auth=(self.user, self.password))
+            selection_url = f"{self.server}/api/selections/{selection['id']}"
+            req_nodes = self.session.get(selection_url, params=payload, auth=(self.user, self.password))
             result_nodes = req_nodes.json()
             if result_nodes['status'] != 0:
                 raise SalsahError("SALSAH-ERROR:\n" + result_nodes['errormsg'])
@@ -856,14 +854,13 @@ class Salsah:
             }, result_nodes['selection']))
             selections_container.append(root)
 
-        #
         # now we get the hierarchical lists (hlists)
-        #
         payload = {
             'vocabulary': vocname,
             'lang': 'all'
         }
-        req = self.session.get(self.server + '/api/hlists', params=payload, auth=(self.user, self.password))
+        hlists_url = f"{self.server}/api/hlists"
+        req = self.session.get(hlists_url, params=payload, auth=(self.user, self.password))
         result = req.json()
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
@@ -896,8 +893,8 @@ class Salsah:
             if hlist.get('description') is not None:
                 root['comments'] = dict(map(lambda a: (a['shortname'], a['description']), hlist['description']))
             payload = {'lang': 'all'}
-            req_nodes = self.session.get(self.server + '/api/hlists/' + hlist['id'], params=payload,
-                                         auth=(self.user, self.password))
+            hlist_url = f"{self.server}/api/hlists/{hlist['id']}"
+            req_nodes = self.session.get(hlist_url, params=payload, auth=(self.user, self.password))
             result_nodes = req_nodes.json()
             if result_nodes['status'] != 0:
                 raise SalsahError("SALSAH-ERROR:\n" + result_nodes['errormsg'])
@@ -947,7 +944,8 @@ class Salsah:
         return nhits, all_obj_ids
 
     def get_one_obj_ids(self, payload: Dict):
-        req = self.session.get(self.server + '/api/search/', params=payload, auth=(self.user, self.password))
+        search_url = f"{self.server}/api/search"
+        req = self.session.get(search_url, params=payload, auth=(self.user, self.password))
         result = req.json()
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
@@ -955,18 +953,18 @@ class Salsah:
             obj_ids = list(map(lambda a: a['obj_id'], result['subjects']))
             return result['nhits'], obj_ids
 
-    def get_resource(self, res_id: int, verbose: bool = True) -> Dict:
+    def get_resource(self, res_id: int) -> Dict:
         payload = {
             'reqtype': 'info'
         }
-        req = self.session.get(self.server + '/api/resources/' + res_id, params=payload,
-                               auth=(self.user, self.password))
+        res_url = f"{self.server}/api/resources/{res_id}"
+        req = self.session.get(res_url, params=payload, auth=(self.user, self.password))
         result = req.json()
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
         firstproperty = result['resource_info']['firstproperty']
 
-        req = self.session.get(self.server + '/api/resources/' + res_id, auth=(self.user, self.password))
+        req = self.session.get(res_url, auth=(self.user, self.password))
         result = req.json()
         if result['status'] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result['errormsg'])
