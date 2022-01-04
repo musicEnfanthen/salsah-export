@@ -1194,8 +1194,8 @@ class Salsah:
         else:
             restype = f":{upper_camel_case(resource['resdata']['restype_name'])}"
 
-        # Creates resource label
-        res_label = resource['firstproperty'].replace('\r', '')
+        # Creates resource label with valid characters
+        res_label = resource['firstproperty'].replace('\r', '').replace('"', '\'')
 
         res_attributes = {
             'restype': restype,
