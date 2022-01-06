@@ -1072,7 +1072,8 @@ class Salsah:
         elif val_type == ValtypeMap.HLIST.value:
             if value:
                 val_element = etree.Element('list')
-                val_element.text = 'H_' + value
+                # hlist references have to start like "H_6615"
+                val_element.text = f"H_{value}"
         elif val_type == ValtypeMap.ICONCLASS.value:
             if value:
                 val_element = etree.Element('iconclass')
@@ -1091,11 +1092,13 @@ class Salsah:
         elif val_type == ValtypeMap.RESPTR.value:
             if value:
                 val_element = etree.Element('resptr')
-                val_element.text = value
+                # resource references have to start with the project name e.g. "webern_11111"
+                val_element.text = f"{self.projectname}_{value}"
         elif val_type == ValtypeMap.SELECTION.value:
             if value:
                 val_element = etree.Element('list')
-                val_element.text = 'S_' + value
+                # selection references have to start like "S_6615"
+                val_element.text = f"S_{value}"
         elif val_type == ValtypeMap.TIME.value:
             if value:
                 val_element = etree.Element('time')
