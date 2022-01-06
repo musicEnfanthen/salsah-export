@@ -404,6 +404,9 @@ class Salsah:
 
         self.vocabulary = vocabulary['shortname']
 
+        # Add default ontology name (= project shortname) to root element
+        self.root.set('default-ontology', self.vocabulary)
+
         # Get project selections
         project['lists'] = self.get_selections_of_vocabulary(self.vocabulary)
 
@@ -1266,9 +1269,6 @@ class Salsah:
 
         # Add project shortcode to root element of XML file
         root_element.set('shortcode', self.shortcode)
-
-        # Add default ontology name (= project shortname) to root element of XML file
-        root_element.set('default-ontology', self.vocabulary)
 
         # Add permission configurations
         for permission in self.permissions:
