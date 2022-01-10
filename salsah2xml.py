@@ -1119,34 +1119,40 @@ class Salsah:
 
         return val_element
 
-    def process_property(self, prop_name: str, property: Dict, verbose: bool):
+    def process_property(self, prop_name: str, property: Dict, res_type_name: str, verbose: bool):
         if prop_name == '__location__':
             return None
 
         if property.get("values") is not None:
-            #
             # first we strip the vocabulary off, if it's not salsah, dc, etc.
-            #
             tmp = prop_name.split(':')
+            new_prop_name = ""
             if tmp[0] == self.vocabulary or tmp[0] == 'dc':
-                new_prop_name = tmp[1]  # strip vocabulary
-                #
                 # if the prop_name does not start with "has" or is, add it to the prop_name. We have to do this
                 # to avoid naming conflicts between resources and properties which share the same
                 # namespace in GraphDB
-                #
-                new_prop_name = self.prepare_property_name(new_prop_name)
+                new_prop_name = self.prepare_property_name(tmp[1])
             else:
                 if tmp[1] == "comment_rt" or tmp[1] == "comment":
-                    new_prop_name = tmp[1]  # strip vocabulary
-                    new_prop_name = self.prepare_property_name(new_prop_name)
+                    new_prop_name = self.prepare_property_name(tmp[1])
                 elif tmp[1] == "lastname" or tmp[1] == "firstname":
-                    new_prop_name = tmp[1]
-                    new_prop_name = self.prepare_property_name(new_prop_name)
+                    new_prop_name = self.prepare_property_name(tmp[1])
+                elif tmp[1] == "part_of":
+                    if self.resptrs.get(res_type_name) is not None:
+                        tmp = self.resptrs.get(res_type_name)
+                        if tmp.get('salsah:part_of') is not None:
+                            knora_object = camel_case_vocabulary_resource(tmp['salsah:part_of'])
+                            new_prop_name = 'isPartOf' + knora_object.replace(self.vocabulary + ':', '')
+                        else:
+                            raise SalsahError("\"salsah:part_of\" is missing in the resptrs.xml!")
+
+                    else:
+                        raise SalsahError("\"part_of\" property was not defined and mapped in an external xml file!")
                 else:
                     new_prop_name = prop_name
+
             options: Dict[str, str] = {
-                'name': ":" + new_prop_name
+                'name': f":{new_prop_name}"
             }
 
             if int(property["valuetype_id"]) == ValtypeMap.SELECTION.value:
@@ -1244,7 +1250,7 @@ class Salsah:
             res_element.append(image_element)
 
         for prop_name in resource["props"]:
-            prop_element = self.process_property(prop_name, resource["props"][prop_name], verbose)
+            prop_element = self.process_property(prop_name, resource["props"][prop_name], resource['resdata']['restype_name'], verbose)
             if prop_element is not None:
                 res_element.append(prop_element)
 
