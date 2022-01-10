@@ -1148,6 +1148,8 @@ class Salsah:
 
                     else:
                         raise SalsahError("\"part_of\" property was not defined and mapped in an external xml file!")
+                elif tmp[1] == "seqnum":
+                    new_prop_name = self.prepare_property_name(tmp[1])
                 else:
                     new_prop_name = prop_name
 
