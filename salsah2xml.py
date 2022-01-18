@@ -11,7 +11,7 @@ import os
 import requests
 import shutil
 import sys
-from html import unescape
+
 requests.urllib3.disable_warnings(requests.urllib3.exceptions.InsecureRequestWarning)
 
 #
@@ -58,7 +58,7 @@ class ValtypeMap(Enum):
 
 
 stags: Dict = {
-    '_link': ['<a href="{}">', '<a class="salsah-link" href="IRI:{}:IRI">'],
+    '_link': ['<a href="{}">', '<a class="salsah-link" href="IRI:{}:IRI">', '<a>'],
     'bold': '<strong>',
     'strong': '<strong>',
     'underline': '<u>',
@@ -106,7 +106,7 @@ etags: Dict = {
     'h6': '</h6>'
 }
 
-allResAdded: Dict = {}
+allResAdded: Dict
 
 
 def save(file_name, data):
@@ -185,7 +185,7 @@ def upper_camel_case(str) -> str:
 
 
 def process_rich_text(utf8str: str, projectname: str, textattr: str = None, resptrs: List = []) -> (str, str):
-    if textattr is not None:
+    if textattr is not None and textattr != "{}":
         attributes = json.loads(textattr)
         if len(attributes) == 0:
             return 'utf8', utf8str
@@ -199,7 +199,7 @@ def process_rich_text(utf8str: str, projectname: str, textattr: str = None, resp
                     'pos': int(val['start'])
                 }
                 if val.get('href'):
-                    attr['href'] = val['href']
+                    attr['href'] = val['href'].replace('"', '\'')
                 if val.get('resid'):
                     attr['resid'] = val['resid']
                 if val.get('style'):
@@ -215,13 +215,15 @@ def process_rich_text(utf8str: str, projectname: str, textattr: str = None, resp
         pos: int = 0
         stack: List = []
         for attr in attrlist:
-            result += utf8str[pos:attr['pos']]
+            result += utf8str[pos:attr['pos']].replace('<', '').replace('>', '')
             if attr['type'] == 'start':
                 if attr['tagname'] == '_link':
                     if attr.get('resid') is not None:
                         result += stags[attr['tagname']][1].format(projectname + '_' + attr['resid'])
-                    else:
+                    elif attr.get('href') is not None:
                         result += stags[attr['tagname']][0].format(attr['href'])
+                    else:
+                        result += stags[attr['tagname']][2]
                 else:
                     result += stags[attr['tagname']]
                 stack.append(attr)
@@ -240,16 +242,21 @@ def process_rich_text(utf8str: str, projectname: str, textattr: str = None, resp
                     tmp = tmpstack.pop()
                     check_list = stags[tmp['tagname']]
                     if isinstance(check_list, list):
-                        new_string = ' '.join(check_list)
+                        if tmp.get('resid') is not None:
+                            result += check_list[1].format(projectname + '_' + tmp['resid'])
+                        elif tmp.get('href') is not None:
+                            result += check_list[0].format(tmp['href'])
+                        else:
+                            result += check_list[2]
                     else:
-                        new_string = check_list
+                        result += check_list
 
-                    result += new_string
                     stack.append(tmp)
             pos = attr['pos']
         return 'xml', result
     else:
-        return 'utf8', utf8str
+        # Not the best solution. All "<" and ">" are eliminated so at the end it is valid
+        return 'xml', utf8str.replace('<', '').replace('>', '')
 
 
 class Richtext:
@@ -990,7 +997,7 @@ class Salsah:
         if val_type == ValtypeMap.TEXT.value:
             if value:
                 val_element = etree.Element('text')
-                val_element.text = value
+                val_element.text = value.replace('"', '\'').replace('<', '').replace('>', '')
                 val_element.set('encoding', 'utf8')
         elif val_type == ValtypeMap.RICHTEXT.value:
             if value.get('utf8str').strip():
@@ -1211,7 +1218,7 @@ class Salsah:
             restype = f":{upper_camel_case(resource['resdata']['restype_name'])}"
 
         # Creates resource label with valid characters
-        res_label = resource['firstproperty'].replace('\r', '').replace('"', '\'')
+        res_label = resource['firstproperty'].replace('\r', '').replace('"', '\'').replace('<', '').replace('>', '')
 
         res_attributes = {
             'restype': restype,
@@ -1310,12 +1317,11 @@ def program(args):
     parser.add_argument("-c", "--permissions_file", help="List of permission configurations")
     parser.add_argument("-d", "--download", action="store_true", help="Download image files")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose feedback")
+    parser.add_argument("-i", "--ids_file", help="List with used ids in all_ids.json")
 
     args = parser.parse_args()
 
-    #
     # here we fetch the shortcodes from the github repository
-    #
     shortcode = None
     if args.shortcode == "XXXX":
         r = requests.get(
@@ -1396,6 +1402,21 @@ def program(args):
     con = Salsah(server=args.server, user=user, password=password, filename=outfile_path,
                  assets_path=assets_path, projectname=args.project, shortcode=shortcode,
                  resptrs=resptrs, permissions=permissions, session=session)
+
+    global allResAdded
+    allResAdded = {}
+
+    if args.ids_file is not None:
+        try:
+            with open(args.ids_file) as ids_added:
+                allResAdded = json.load(ids_added)
+        except ValueError:
+            print("Error: File is not a JSON file or does not contain an object.")
+            exit()
+        except OSError:
+            print(f"Error: Couldn't open {args.ids_file}. Check path file and try it again")
+            exit()
+
     proj = con.get_project()
     # proj['project']['ontologies'].update({'resources': con.get_resourcetypes_of_vocabulary(proj['project']['shortname'], session)})
 
@@ -1413,7 +1434,11 @@ def program(args):
     for resource in resources:
         con.process_resource(resource, images_path, download, verbose)
 
+    # Writes all the data to a xml file
     con.write_xml()
+
+    # Writes all the resource ids to a json file. So it can be used for further imports without having duplicates ids.
+    save(f"{con.projectname}-all_ids.json", allResAdded)
 
     # Writes all the resources to a json file (for debugging)
     # save(con.filename + "_all_resources.json", {'resources': resources})
