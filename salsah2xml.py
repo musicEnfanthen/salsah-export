@@ -1309,15 +1309,16 @@ def program(args):
     parser.add_argument("-u", "--user", help="Username for SALSAH")
     parser.add_argument("-p", "--password", help="The password for login")
     parser.add_argument("-P", "--project", help="Shortname or ID of project")
-    parser.add_argument("-s", "--shortcode", default='XXXX', help="Knora-shortcode of project")
+    parser.add_argument("-s", "--shortcode", default="XXXX", help="Knora-shortcode of project")
     parser.add_argument("-S", "--start", type=int, help="Start at record with given number")
     parser.add_argument("-n", "--nrows", type=int, help="Number of records to get, -1 to get all")
     parser.add_argument("-F", "--folder", default="-", help="Output folder")
     parser.add_argument("-r", "--resptrs_file", help="List of resptrs targets")
     parser.add_argument("-c", "--permissions_file", help="List of permission configurations")
+    parser.add_argument("-i", "--ids_file", help="List with used ids in all_ids.json")
+    parser.add_argument("-f", "--data_file_type", default="xml", help="File type the data should saved to")
     parser.add_argument("-d", "--download", action="store_true", help="Download image files")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose feedback")
-    parser.add_argument("-i", "--ids_file", help="List with used ids in all_ids.json")
 
     args = parser.parse_args()
 
@@ -1338,6 +1339,13 @@ def program(args):
     if shortcode is None:
         print("You must give a shortcode (\"--shortcode XXXX\")!")
         exit(1)
+
+    data_type = None
+    if args.data_file_type == "xml" or args.data_file_type == "csv":
+        data_type = args.data_file_type
+    else:
+        print("You must give a valid data type: 'xml' | 'csv")
+        exit(0)
 
     user = 'root' if args.user is None else args.user
     password = 'SieuPfa15' if args.password is None else args.password
