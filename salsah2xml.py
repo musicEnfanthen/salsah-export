@@ -279,6 +279,7 @@ class Salsah:
             password: str,
             filename: str,
             assets_path: str,
+            images_path: str,
             projectname: str,
             shortcode: str,
             resptrs: dict,
@@ -301,6 +302,7 @@ class Salsah:
         self.password: str = password
         self.filename: str = filename
         self.assets_path: str = assets_path
+        self.images_path: str = images_path
         self.projectname: str = projectname
         self.shortcode: str = shortcode
         self.resptrs: List[str] = resptrs
@@ -1202,7 +1204,7 @@ class Salsah:
         else:
             return None
 
-    def process_resource(self, resource: Dict, images_path: str, download: bool, verbose: bool):
+    def process_resource(self, resource: Dict, download: bool, verbose: bool):
         # Creates resource id and checks if was already added
         res_id = f"{self.projectname}_{resource['resdata']['res_id']}"
         if res_id in allResAdded:
@@ -1235,7 +1237,7 @@ class Salsah:
         res_element = etree.Element('resource', res_attributes)
 
         if resource["resinfo"].get('locdata') is not None:
-            imag_path = os.path.join(images_path, resource["resinfo"]['locdata']['origname'])
+            imag_path = os.path.join(self.images_path, resource["resinfo"]['locdata']['origname'])
             ext = os.path.splitext(resource["resinfo"]['locdata']['origname'])[1][1:].strip().lower()
             if ext == 'jpg' or ext == 'jpeg':
                 img_format = 'jpg'
@@ -1303,6 +1305,77 @@ class Salsah:
         f.close()
 
 
+def param_project(args):
+    if args.project is None:
+        print(f"You must give a shortname or ID of a project")
+        exit()
+    else:
+        return args.project
+
+
+def param_shortcode(args):
+    # here we fetch the shortcodes from the github repository
+    shortcode = None
+    if args.shortcode == "XXXX":
+        r = requests.get(
+            'https://raw.githubusercontent.com/dhlab-basel/dasch-ark-resolver-data/master/data/shortcodes.csv')
+        lines = r.text.split('\r\n')
+        for line in lines:
+            parts = line.split(',')
+            if len(parts) > 1 and parts[1] == args.project:
+                shortcode = parts[0]
+                print('Found Knora project shortcode "{}" for "{}"!'.format(shortcode, parts[1]))
+    else:
+        shortcode = args.shortcode
+
+    if shortcode is None:
+        print("You must give a shortcode (\"--shortcode XXXX\")!")
+        exit()
+
+    return shortcode
+
+
+def param_datatype(args):
+    if args.data_file_type == "xml" or args.data_file_type == "csv":
+        return args.data_file_type
+    else:
+        print("You must give a valid data type: 'xml' | 'csv")
+        exit()
+
+
+def param_resptrs(args, parser):
+    resptrs: Dict = {}
+    if args.resptrs_file is not None:
+        resptrs_tree = etree.parse(args.resptrs_file, parser)
+        resptrs_root = resptrs_tree.getroot()
+        if resptrs_root.find('resource') is not None:
+            for restype in resptrs_root.findall('resource'):
+                restype_name = restype.attrib["name"].strip()
+                props: Dict = {}
+                for prop in restype:
+                    props[prop.attrib["name"]] = prop.text.strip()
+                resptrs[restype_name] = props
+        else:
+            print('No resources specified in given file: "{}"!'.format(args.resptrs_file))
+
+    return resptrs
+
+
+def param_permissions(args, parser):
+    permissions: Dict = {}
+    if args.permissions_file is not None:
+        permissions_tree = etree.parse(args.permissions_file, parser)
+        permissions_root = permissions_tree.getroot()
+        if permissions_root.find('permissions') is not None:
+            for permission in permissions_root.findall('permissions'):
+                permission_name = permission.attrib["id"].strip()
+                permissions[permission_name] = permission
+        else:
+            print('No permissions specified in given file: "{}"!'.format(args.permissions_file))
+
+    return permissions
+
+
 def program(args):
     parser = argparse.ArgumentParser()
     parser.add_argument("server", help="URL of the SALSAH server")
@@ -1322,36 +1395,14 @@ def program(args):
 
     args = parser.parse_args()
 
-    # here we fetch the shortcodes from the github repository
-    shortcode = None
-    if args.shortcode == "XXXX":
-        r = requests.get(
-            'https://raw.githubusercontent.com/dhlab-basel/dasch-ark-resolver-data/master/data/shortcodes.csv')
-        lines = r.text.split('\r\n')
-        for line in lines:
-            parts = line.split(',')
-            if len(parts) > 1 and parts[1] == args.project:
-                shortcode = parts[0]
-                print('Found Knora project shortcode "{}" for "{}"!'.format(shortcode, parts[1]))
-    else:
-        shortcode = args.shortcode
-
-    if shortcode is None:
-        print("You must give a shortcode (\"--shortcode XXXX\")!")
-        exit(1)
-
-    data_type = None
-    if args.data_file_type == "xml" or args.data_file_type == "csv":
-        data_type = args.data_file_type
-    else:
-        print("You must give a valid data type: 'xml' | 'csv")
-        exit(0)
+    project = param_project(args)
+    shortcode = param_shortcode(args)
+    datatype = param_datatype(args)
 
     user = 'root' if args.user is None else args.user
     password = 'SieuPfa15' if args.password is None else args.password
     start = 0 if args.start is None else args.start
     nrows = -1 if args.nrows is None else args.nrows
-    project = args.project
     download = args.download
     verbose = args.verbose
 
@@ -1359,30 +1410,8 @@ def program(args):
     # to discard xml file formatting
     parser = etree.XMLParser(remove_blank_text=True)
 
-    resptrs: Dict = {}
-    if args.resptrs_file is not None:
-        resptrs_tree = etree.parse(args.resptrs_file, parser)
-        resptrs_root = resptrs_tree.getroot()
-        if resptrs_root.find('resource') is not None:
-            for restype in resptrs_root.findall('resource'):
-                restype_name = restype.attrib["name"].strip()
-                props: Dict = {}
-                for prop in restype:
-                    props[prop.attrib["name"]] = prop.text.strip()
-                resptrs[restype_name] = props
-        else:
-            print('No resources specified in given file: "{}"!'.format(args.resptrs_file))
-
-    permissions: Dict = {}
-    if args.permissions_file is not None:
-        permissions_tree = etree.parse(args.permissions_file, parser)
-        permissions_root = permissions_tree.getroot()
-        if permissions_root.find('permissions') is not None:
-            for permission in permissions_root.findall('permissions'):
-                permission_name = permission.attrib["id"].strip()
-                permissions[permission_name] = permission
-        else:
-            print('No permissions specified in given file: "{}"!'.format(args.permissions_file))
+    resptrs = param_resptrs(args, parser)
+    permissions = param_permissions(args, parser)
 
     if args.folder == '-':
         folder = args.project + ".dir"
@@ -1401,14 +1430,14 @@ def program(args):
         os.mkdir(images_path)
     except OSError:
         print("Couldn't create necessary folders")
-        exit(2)
+        exit()
 
     # Define session
     session = requests.Session()
     session.verify = False  # Works...
 
     con = Salsah(server=args.server, user=user, password=password, filename=outfile_path,
-                 assets_path=assets_path, projectname=args.project, shortcode=shortcode,
+                 assets_path=assets_path, images_path=images_path, projectname=args.project, shortcode=shortcode,
                  resptrs=resptrs, permissions=permissions, session=session)
 
     global allResAdded
@@ -1440,7 +1469,7 @@ def program(args):
     resources = list(map(con.get_resource, res_ids))
 
     for resource in resources:
-        con.process_resource(resource, images_path, download, verbose)
+        con.process_resource(resource, download, verbose)
 
     # Writes all the data to a xml file
     con.write_xml()
