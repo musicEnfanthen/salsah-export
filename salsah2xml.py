@@ -1420,6 +1420,17 @@ def param_shortcode(args):
     return shortcode
 
 
+def param_credentials(args):
+    user = args.user
+    pwd = args.password
+
+    if user is None or pwd is None:
+        print("No user and password defined ('--user XXX --password YYYY)")
+        exit()
+
+    return user, pwd
+
+
 def param_resptrs(args, parser):
     resptrs: Dict = {}
     if args.resptrs_file is not None:
@@ -1473,9 +1484,8 @@ def program(args):
 
     project = param_project(args)
     shortcode = param_shortcode(args)
+    user, password = param_credentials(args)
 
-    user = "root" if args.user is None else args.user
-    password = "SieuPfa15" if args.password is None else args.password
     start = 0 if args.start is None else args.start
     nrows = -1 if args.nrows is None else args.nrows
     download = args.download
