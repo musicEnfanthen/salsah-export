@@ -1498,7 +1498,12 @@ def program(args):
     outfile_path = os.path.join(folder, project)
 
     if os.path.exists(folder):
-        shutil.rmtree(folder)
+        delete_existing = input('Output directory already exists! Delete existing? [y/N] ')
+        if delete_existing.lower() == 'y':
+            shutil.rmtree(folder)
+        else:
+            print("Script is stopping")
+            exit()
     try:
         os.mkdir(folder)
         os.mkdir(assets_path)
