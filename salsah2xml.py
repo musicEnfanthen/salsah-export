@@ -1558,8 +1558,13 @@ def program(args):
 
     # Processes through all the resources and saves them in the salsah object.
     # Once in the xml_root for the xml file and once in the csv_data for the csv file
+    res_counter = 0
     for resource in resources:
         con.process_resource(resource, download, verbose)
+        res_counter += 1
+
+        if verbose and res_counter % 1000 == 0:
+            print(f"Res no. {res_counter} processed")
 
     # Writes all the data from xml_root to a xml file
     con.write_to_xml()
