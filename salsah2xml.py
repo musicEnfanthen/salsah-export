@@ -1489,8 +1489,7 @@ def program(args):
     download = args.download
     verbose = args.verbose
 
-    # select a parser and make it remove whitespace
-    # to discard xml file formatting
+    # Selects a parser and make it remove whitespace to discard xml file formatting
     parser = etree.XMLParser(remove_blank_text=True)
 
     resptrs = param_resptrs(args, parser)
@@ -1520,9 +1519,8 @@ def program(args):
         print("Couldn't create necessary folders")
         exit()
 
-    # Define session
+    # Defines session
     session = requests.Session()
-    session.verify = False  # Works...
 
     con = Salsah(server=args.server, user=user, password=password, filename=outfile_path,
                  assets_path=assets_path, images_path=images_path, projectname=args.project, shortcode=shortcode,
