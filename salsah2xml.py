@@ -307,11 +307,10 @@ class Salsah:
         self.images_path: str = images_path
         self.projectname: str = projectname
         self.shortcode: str = shortcode
-        self.resptrs: List[str] = resptrs
-        self.permissions: List[str] = permissions
+        self.resptrs: Dict = resptrs
+        self.permissions: Dict = permissions
         self.session: requests.Session = session
 
-        self.mime = magic.Magic(mime=True)
         self.selection_mapping: Dict[str, str] = {}
         self.selection_node_mapping: Dict[str, str] = {}
         self.hlist_mapping: Dict[str, str] = {}
@@ -336,7 +335,7 @@ class Salsah:
                 fd.write(chunk)
             fd.close()
 
-        mimetype: str = self.mime.from_file(iconpath)
+        mimetype: str = magic.Magic(mime=True).from_file(iconpath)
         ext: str
         if mimetype == "image/gif":
             ext = ".gif"
