@@ -463,8 +463,7 @@ class Salsah:
             else:
                 return "has" + upper_camel_case(pname)
 
-
-    def get_properties_of_resourcetype(self, vocname: str, restype_id: int, salsah_restype_info: dict) -> list:
+    def get_properties_of_resourcetype(self, vocname: str, restype_id: int, salsah_restype_info: dict) -> tuple[list, list]:
         gui_attr_lut = {
             "text": ["size", "maxlength"],
             "textarea": ["width", "rows", "wrap"],
@@ -1050,12 +1049,12 @@ class Salsah:
                     end = jdcal.jd2jcal(float(value["dateval2"]), 0.0)
                 p1: str = "CE"
                 if start[0] <= 0:
-                    start[0] = start[0] - 1
+                    start = (start[0] - 1, start[1], start[2], start[3])
                     p1 = "BCE"
 
                 p2: str = "CE"
                 if end[0] <= 0:
-                    end[0] = end[0] - 1
+                    end = (end[0] - 1, end[1], end[2], end[3])
                     p2 = "BCE"
 
                 startstr: str = ""
