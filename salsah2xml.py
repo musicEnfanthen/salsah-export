@@ -2,6 +2,7 @@ from enum import Enum
 from lxml import etree
 from re import sub, search
 from typing import List, Dict, Tuple
+from datetime import datetime
 import argparse
 import jdcal
 import json
@@ -19,6 +20,16 @@ requests.urllib3.disable_warnings(requests.urllib3.exceptions.InsecureRequestWar
 #
 # https://phpmyadmin.sw-zh-dasch-prod-02.prod.dasch.swiss
 #
+
+
+class Colors:
+    BLUE = "\033[34m"
+    GREEN = "\033[32m"
+    RED = "\033[31m"
+    ORANGE = "\033[33m"
+    GREY = "\033[90m"
+    END = "\033[0m"
+
 
 Valtype: Dict = {
     "1": "text",
@@ -111,6 +122,26 @@ allResAdded: Dict
 max_values = 0
 
 
+def time():
+    return f"[{Colors.GREY}{datetime.now().strftime('%H:%M:%S')}{Colors.END}]"
+
+
+def success():
+    return f"{Colors.GREEN}SUCCESS:{Colors.END}"
+
+
+def log():
+    return f"{Colors.BLUE}LOG:{Colors.END}"
+
+
+def warning():
+    return f"{Colors.ORANGE}WARNING:{Colors.END}"
+
+
+def error():
+    return f"{Colors.RED}ERROR:{Colors.END}"
+
+
 def save(file_name, data):
     """
     Writes the data into a json file
@@ -121,8 +152,8 @@ def save(file_name, data):
     try:
         with open(file_name, "w") as outfile:
             json.dump(data, outfile)
-    except Exception as err:
-        print(err, file_name)
+    except Exception:
+        print(f"{error()} File {file_name} couldn't be opened")
         raise SystemExit(0)
 
 
@@ -178,21 +209,23 @@ def camel_case_vocabulary_resource(str) -> str:
         return upper_camel_case(str)
 
 
-def lower_camel_case(str) -> str:
-    return camel_case(str, "lower")
+def lower_camel_case(s: str) -> str:
+    return camel_case(s, "lower")
 
 
-def upper_camel_case(str) -> str:
-    return camel_case(str, "upper")
+def upper_camel_case(s: str) -> str:
+    return camel_case(s, "upper")
 
 
 def process_rich_text(utf8str: str, projectname: str, textattr: str = None, resptrs: List = []) -> (str, str):
     if textattr is not None and textattr != "{}":
+
         attributes = json.loads(textattr)
         if len(attributes) == 0:
             return "utf8", utf8str
+
         attrlist: List = []
-        result: str = ""
+
         for key, vals in attributes.items():
             for val in vals:
                 attr: Dict = {
@@ -200,12 +233,14 @@ def process_rich_text(utf8str: str, projectname: str, textattr: str = None, resp
                     "type": "start",
                     "pos": int(val["start"])
                 }
+
                 if val.get("href"):
                     attr["href"] = val["href"].replace("\"", "'")
                 if val.get("resid"):
                     attr["resid"] = val["resid"]
                 if val.get("style"):
                     attr["style"] = val["style"]
+
                 attrlist.append(attr)
                 attr = {
                     "tagname": key,
@@ -213,9 +248,12 @@ def process_rich_text(utf8str: str, projectname: str, textattr: str = None, resp
                     "pos": val["end"]
                 }
                 attrlist.append(attr)
+
         attrlist = sorted(attrlist, key=lambda attr: attr["pos"])
         pos: int = 0
+        result: str = ""
         stack: List = []
+
         for attr in attrlist:
             result += utf8str[pos:attr["pos"]].replace("<", "").replace(">", "")
             if attr["type"] == "start":
@@ -317,9 +355,6 @@ class Salsah:
         self.hlist_node_mapping: Dict[str, str] = {}
         self.vocabulary: str = ""
 
-        self.xml_root = self.get_xml_header()
-        self.csv_data = []
-
     def get_icon(self, iconsrc: str, name: str) -> str:
         """
         Get an icon from old SALSAH
@@ -350,13 +385,14 @@ class Salsah:
         else:
             ext = ".img"
         os.rename(iconpath, iconpath + ext)
+
         return iconpath + ext
 
     def get_ontology(self) -> dict:
         """
         Get project info
 
-        :return: Project information that can be dumped as json for knora-create-ontology"
+        :return: Project information that can be dumped as json for knora-create-ontology
         """
 
         # first get all system ontologies
@@ -365,7 +401,14 @@ class Salsah:
         result = req.json()
         if result["status"] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result["errormsg"])
-        sysvocabularies = result["vocabularies"]
+
+        prefixes = dict(map(lambda a: (a["shortname"], a["uri"]), result["vocabularies"]))
+
+        project_container: Dict = {
+            "$schema": "https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/knora/dsplib/schemas/ontology.json",
+            "prefixes": prefixes,
+            "project": {}
+        }
 
         # get project info
         project_url = f"{self.server}/api/projects/{self.projectname}?lang=all"
@@ -374,17 +417,15 @@ class Salsah:
         if result["status"] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result["errormsg"])
 
-        project_container: Dict = {
-            "$schema": "https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/knora/dsplib/schemas/ontology.json",
-            "prefixes": dict(map(lambda a: (a["shortname"], a["uri"]), sysvocabularies)),
-            "project": {}
-        }
-        project_info = result["project_info"]  # Is this the project_container??? Decide later
+        shortname = result["project_info"]["shortname"]
+        longname = result["project_info"]["longname"]
+        descriptions = dict(map(lambda a: (a["shortname"], a["description"]), result["project_info"]["description"]))
+
         project: Dict = {
             "shortcode": self.shortcode,
-            "shortname": project_info["shortname"],
-            "longname": project_info["longname"],
-            "descriptions": dict(map(lambda a: (a["shortname"], a["description"]), project_info["description"])),
+            "shortname": shortname,
+            "longname": longname,
+            "descriptions": descriptions,
             "users": [{
                 "username": "testuser",
                 "email": "testuser@test.org",
@@ -396,10 +437,11 @@ class Salsah:
                 "projects": []
             }]
         }
-        if project_info["keywords"] is not None:
-            project["keywords"] = list(map(lambda a: a.strip(), project_info["keywords"].split(",")))
+
+        if result["project_info"]["keywords"] is not None:
+            project["keywords"] = list(map(lambda a: a.strip(), result["project_info"]["keywords"].split(",")))
         else:
-            project["keywords"] = [result["project_info"]["shortname"]]
+            project["keywords"] = [shortname]
 
         # Get the vocabulary. The old Salsah uses only one vocabulary per project....
         # Note: the API call always returns also the system vocabularies which have to be excluded
@@ -408,15 +450,13 @@ class Salsah:
         result = req.json()
         if result["status"] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result["errormsg"])
+
         vocabulary = None
         for voc in result["vocabularies"]:
             if int(voc["project_id"]) != 0:
                 vocabulary = voc
 
         self.vocabulary = vocabulary["shortname"]
-
-        # Add default ontology name (= project shortname) to root element
-        self.xml_root.set("default-ontology", self.vocabulary)
 
         # Get project selections
         project["lists"] = self.get_selections_of_vocabulary(self.vocabulary)
@@ -484,17 +524,17 @@ class Salsah:
                 continue
 
             pname = self.prepare_property_name(property["name"])
+            labels = dict(map(lambda a: (a["shortname"], a["label"]), property["label"]))
 
             prop = {
                 "name": pname,
-                "labels": dict(map(lambda a: (a["shortname"], a["label"]), property["label"]))
+                "labels": labels
             }
+
             if property.get("description") is not None:
                 prop["comments"] = dict(map(lambda a: (a["shortname"], a["description"]), property["description"]))
 
-            #
-            # convert attributes into dict
-            #
+            # Converts attributes into dict
             attrdict: Dict = {}
             if property.get("attributes") is not None:
                 attributes = property["attributes"].split(";")
@@ -528,8 +568,7 @@ class Salsah:
                             prop["name"] = "isPartOf" + knora_object.replace(vocname + ":", "")
                     else:
                         knora_object = "FIXME--Resource--FIXME"
-                        print("WARNING: Resclass {} has resptr {} with no object!!!".format(
-                            salsah_restype_info[restype_id]["name"], property["name"]))
+                        print(f"{warning()} Resclass {salsah_restype_info[restype_id]['name']} has resptr {property['name']} with no object!")
                 elif property["name"] == "region_of":
                     knora_super = ["isRegionOf"]
                     if self.resptrs.get(salsah_restype_info[restype_id]["name"]) is not None:
@@ -538,7 +577,7 @@ class Salsah:
                             knora_object = tmp["salsah:part_of"]
                     else:
                         knora_object = "FIXME--Resource--FIXME"
-                        print(f"WARNING: Resclass {salsah_restype_info[restype_id]['name']} has resptr {property['name']} with no object!")
+                        print(f"{warning()} Resclass {salsah_restype_info[restype_id]['name']} has resptr {property['name']} with no object!")
                 elif property["name"] == "resource_reference":
                     knora_super = ["hasLinkTo"]
                     if self.resptrs.get(salsah_restype_info[restype_id]["name"]) is not None:
@@ -547,13 +586,13 @@ class Salsah:
                             knora_object = tmp["salsah:part_of"]
                     else:
                         knora_object = "FIXME--Resource--FIXME"
-                        print(f"WARNING: Resclass {salsah_restype_info[restype_id]['name']} has resptr {property['name']} with no object!")
+                        print(f"{warning()} Resclass {salsah_restype_info[restype_id]['name']} has resptr {property['name']} with no object!")
                 elif property["name"] == "interval":
                     knora_super = ["hasValue"]
                     knora_object = "IntervalValue"
                 elif property["name"] == "time":
                     # ToDo: implement TimeValue in knora-base
-                    raise SalsahError("SALSAH-ERROR:\n\"TimeValue\" NYI!!")
+                    raise SalsahError("SALSAH-ERROR:\n\"TimeValue\" Not yet implemented!!")
                 elif property["name"] == "seqnum":
                     knora_super = ["seqnum"]
                     knora_object = "IntValue"
@@ -565,6 +604,7 @@ class Salsah:
                             knora_object = tmp["salsah:part_of"]
                     else:
                         knora_object = "FIXME--Resource--FIXME"
+                        print(f"{warning()} Resclass {salsah_restype_info[restype_id]['name']} has sequence_of {property['name']} with no object!")
                 elif property["name"] == "uri":
                     knora_super = ["hasValue"]
                     knora_object = "UriValue"
@@ -572,8 +612,7 @@ class Salsah:
                     knora_super = ["hasValue"]
                     knora_object = "TextValue"
             elif property["vocabulary"] == "dc":
-                knora_super = ["hasValue",
-                               "dc:" + property["name"] if property["name"] != "description_rt" else "dc:description"]
+                knora_super = ["hasValue", "dc:" + property["name"] if property["name"] != "description_rt" else "dc:description"]
                 knora_object = "TextValue"
             elif property["vocabulary"] == vocname:
                 if property["vt_php_constant"] == "VALTYPE_TEXT":
@@ -608,8 +647,7 @@ class Salsah:
                         knora_object = voc + ":" + upper_camel_case(restype)
                     if knora_object is None:
                         knora_object = "FIXME--Resource--FIXME"
-                        print("WARNING: Resclass {} has resptr {} with no object!".format(
-                            salsah_restype_info[restype_id]["name"], property["name"]))
+                        print(f"{warning()} Resclass {salsah_restype_info[restype_id]['name']} has resptr {property['name']} with no object!")
                 elif property["vt_php_constant"] == "VALTYPE_SELECTION":
                     knora_super = ["hasValue"]
                     knora_object = "ListValue"
@@ -638,13 +676,9 @@ class Salsah:
                     knora_super = ["hasValue"]
                     knora_object = "GeonameValue"
                 else:
-                    raise SalsahError(
-                        "SALSAH-ERROR:\n\"Invalid vocabulary used: " + property["vocabulary"] + " by property " +
-                        property["name"])
+                    raise SalsahError("SALSAH-ERROR:\n\"Invalid vocabulary used: " + property["vocabulary"] + " by property " + property["name"])
             else:
-                raise SalsahError(
-                    "SALSAH-ERROR:\n\"Invalid vocabulary used: " + property["vocabulary"] + " by property " +
-                    property["name"])
+                raise SalsahError("SALSAH-ERROR:\n\"Invalid vocabulary used: " + property["vocabulary"] + " by property " + property["name"])
 
             gui_attributes: Dict = {}
             if property["gui_name"] == "text":
@@ -655,7 +689,6 @@ class Salsah:
                             gui_attributes[attr] = int(attrdict.get(attr))
                         else:
                             gui_attributes[attr] = attrdict.get(attr)
-                        # gui_attributes.append(attr + "=" + attrdict[attr])
             elif property["gui_name"] == "textarea":
                 gui_element = "Textarea"
                 for attr in gui_attr_lut["textarea"]:
@@ -664,19 +697,16 @@ class Salsah:
                             gui_attributes[attr] = int(attrdict.get(attr))
                         else:
                             gui_attributes[attr] = attrdict.get(attr)
-                        # gui_attributes.append(attr + "=" + attrdict[attr])
             elif property["gui_name"] == "pulldown":
                 gui_element = "List"
                 for attr in gui_attr_lut["pulldown"]:
                     if attrdict.get(attr) and attr == "selection":
                         gui_attributes["hlist"] = self.selection_mapping[attrdict[attr]]
-                        # gui_attributes.append("hlist=" + self.selection_mapping[attrdict[attr]])
             elif property["gui_name"] == "slider":
                 gui_element = "Slider"
                 for attr in gui_attr_lut["slider"]:
                     if attrdict.get(attr):
                         gui_attributes[attr] = attrdict.get(attr)
-                        # gui_attributes.append(attr + "=" + attrdict[attr])
             elif property["gui_name"] == "spinbox":
                 gui_element = "Spinbox"
             elif property["gui_name"] == "searchbox":
@@ -687,7 +717,6 @@ class Salsah:
                             gui_attributes[attr] = int(attrdict.get(attr))
                         else:
                             gui_attributes[attr] = attrdict.get(attr)
-                        # gui_attributes.append(attr + "=" + attrdict[attr])
             elif property["gui_name"] == "date":
                 gui_element = "Date"
             elif property["gui_name"] == "geometry":
@@ -697,19 +726,16 @@ class Salsah:
                 for attr in gui_attr_lut["colorpicker"]:
                     if attrdict.get(attr):
                         gui_attributes[attr] = attrdict.get(attr)
-                        # gui_attributes.append(attr + "=" + attrdict[attr])
             elif property["gui_name"] == "hlist":
                 gui_element = "List"
                 for attr in gui_attr_lut["hlist"]:
                     if attrdict.get(attr) and attr == "hlist":
                         gui_attributes[attr] = self.hlist_mapping[attrdict[attr]]
-                        # gui_attributes.append(attr + "=" + self.hlist_mapping[attrdict[attr]])
             elif property["gui_name"] == "radio":
                 gui_element = "Radio"
                 for attr in gui_attr_lut["pulldown"]:
                     if attrdict.get(attr) and attr == "selection":
                         gui_attributes["hlist"] = self.selection_mapping[attrdict[attr]]
-                        # gui_attributes.append("hlist=" + self.selection_mapping[attrdict[attr]])
             elif property["gui_name"] == "richtext":
                 gui_element = "Richtext"
             elif property["gui_name"] == "time":
@@ -719,7 +745,6 @@ class Salsah:
                 for attr in gui_attr_lut["interval"]:
                     if attrdict.get(attr):
                         gui_attributes[attr] = attrdict.get(attr)
-                        # gui_attributes.append(attr + "=" + attrdict[attr])
             elif property["gui_name"] == "geoname":
                 gui_element = "Geonames"
             else:
@@ -729,6 +754,7 @@ class Salsah:
 
             if knora_super:
                 prop["super"] = knora_super
+
             prop["object"] = knora_object
             prop["gui_element"] = gui_element
 
@@ -812,9 +838,9 @@ class Salsah:
                                                                                        salsah_restype_info)
             restypes_container.append(restype)
 
-            for property in properties:
-                if property["name"] not in added_properties:
-                    added_properties[property["name"]] = property
+            for prop in properties:
+                if prop["name"] not in added_properties:
+                    added_properties[prop["name"]] = prop
 
         return list(added_properties.values()), restypes_container
 
@@ -833,6 +859,7 @@ class Salsah:
             "vocabulary": vocname,
             "lang": "all"
         }
+
         selections_url = f"{self.server}/api/selections"
         req = self.session.get(selections_url, params=payload, auth=(self.user, self.password))
         result = req.json()
@@ -841,7 +868,7 @@ class Salsah:
 
         selections = result["selections"]
 
-        # Let"s make an empty list for the lists:
+        # Empty list for the lists:
         selections_container = []
 
         for selection in selections:
@@ -863,6 +890,7 @@ class Salsah:
                 "name": "S_" + a["id"],
                 "labels": a["label"]
             }, result_nodes["selection"]))
+
             selections_container.append(root)
 
         # now we get the hierarchical lists (hlists)
@@ -958,11 +986,13 @@ class Salsah:
         search_url = f"{self.server}/api/search"
         req = self.session.get(search_url, params=payload, auth=(self.user, self.password))
         result = req.json()
+
         if result["status"] != 0:
             raise SalsahError("SALSAH-ERROR:\n" + result["errormsg"])
-        else:
-            obj_ids = list(map(lambda a: a["obj_id"], result["subjects"]))
-            return result["nhits"], obj_ids
+
+        obj_ids = list(map(lambda a: a["obj_id"], result["subjects"]))
+
+        return result["nhits"], obj_ids
 
     def get_resource(self, res_id: int) -> Dict:
         payload = {
@@ -994,17 +1024,20 @@ class Salsah:
         f.close()
 
     def process_value(self, val_type: int, value: any, verbose: bool, counter: int, comment: str = None):
-        xml_val_element = None
+        val_element = None
         csv_values = {}
 
         if val_type == ValtypeMap.TEXT.value:
             if value:
-                xml_val_element = etree.Element("text")
-                xml_val_element.text = value.replace("\"", "'").replace("<", "").replace(">", "")
-                xml_val_element.set("encoding", "utf8")
+                val_element = etree.Element("text")
+                val_element.text = value.replace("\"", "'").replace("<", "").replace(">", "")
+                val_element.set("encoding", "utf8")
                 # TODO: replace characters in value
                 csv_values[f"{counter}_value"] = value
                 csv_values[f"{counter}_encoding"] = "utf8"
+
+                if verbose:
+                    print(f"{log()} text -> '{value}'")
         elif val_type == ValtypeMap.RICHTEXT.value:
             if value.get("utf8str").strip():
                 encoding, rich_text = process_rich_text(
@@ -1014,27 +1047,30 @@ class Salsah:
                     resptrs=value.get("resptrs")
                     )
 
-                xml_val_element = etree.Element("text")
-                xml_val_element.text = rich_text
-                xml_val_element.set("encoding", encoding)
+                val_element = etree.Element("text")
+                val_element.text = rich_text
+                val_element.set("encoding", encoding)
                 csv_values[f"{counter}_value"] = rich_text
                 csv_values[f"{counter}_encoding"] = encoding
 
                 resrefs = "|".join(value["resource_reference"])
                 if len(resrefs) > 0:
-                    xml_val_element.set("resrefs", resrefs)
+                    val_element.set("resrefs", resrefs)
                     csv_values[f"{counter}_res ref"] = resrefs
 
                 if verbose:
-                    print(f"richtext: {value.get('utf8str').strip()}")
+                    print(f"{log()} richtext -> '{value.get('utf8str').strip()}'")
         elif val_type == ValtypeMap.COLOR.value:
             if value:
-                xml_val_element = etree.Element("color")
-                xml_val_element.text = value
+                val_element = etree.Element("color")
+                val_element.text = value
                 csv_values[f"{counter}_value"] = value
+
+                if verbose:
+                    print(f"{log()} color -> '{value}'")
         elif val_type == ValtypeMap.DATE.value:
             if value:
-                xml_val_element = etree.Element("date")
+                val_element = etree.Element("date")
                 cal: str
                 start: Tuple[int, int, int, float]
                 end: Tuple[int, int, int, float]
@@ -1076,92 +1112,127 @@ class Salsah:
                     if start[0] != end[0] or start[1] != end[1] or start[2] != end[2]:
                         endstr = ":{}:{:04d}-{:02d}-{:02d}".format(p2, end[0], end[1], end[2])
 
-                xml_val_element.text = f"{startstr}{endstr}"
+                val_element.text = f"{startstr}{endstr}"
                 csv_values[f"{counter}_value"] = f"{startstr}{endstr}"
+
+                if verbose:
+                    print(f"{log()} date -> '{value}'")
         elif val_type == ValtypeMap.FLOAT.value:
             if value:
-                xml_val_element = etree.Element("float")
-                xml_val_element.text = value
+                val_element = etree.Element("float")
+                val_element.text = value
                 csv_values[f"{counter}_value"] = value
+
+                if verbose:
+                    print(f"{log()} float -> '{value}'")
         elif val_type == ValtypeMap.GEOMETRY.value:
             if value:
-                xml_val_element = etree.Element("geometry")
-                xml_val_element.text = value
+                val_element = etree.Element("geometry")
+                val_element.text = value
                 csv_values[f"{counter}_value"] = value
+
+                if verbose:
+                    print(f"{log()} geometry -> '{value}'")
         elif val_type == ValtypeMap.GEONAME.value:
             if value:
-                xml_val_element = etree.Element("geoname")
-                xml_val_element.text = value
+                val_element = etree.Element("geoname")
+                val_element.text = value
                 csv_values[f"{counter}_value"] = value
+
+                if verbose:
+                    print(f"{log()} geoname -> '{value}'")
         elif val_type == ValtypeMap.HLIST.value:
             if value:
-                xml_val_element = etree.Element("list")
+                val_element = etree.Element("list")
                 # hlist references have to start like "H_6615"
-                xml_val_element.text = f"H_{value}"
+                val_element.text = f"H_{value}"
                 csv_values[f"{counter}_value"] = f"H_{value}"
+
+                if verbose:
+                    print(f"{log()} hlist -> '{value}'")
         elif val_type == ValtypeMap.ICONCLASS.value:
             if value:
-                xml_val_element = etree.Element("iconclass")
-                xml_val_element.text = value
+                val_element = etree.Element("iconclass")
+                val_element.text = value
                 csv_values[f"{counter}_value"] = value
+
+                if verbose:
+                    print(f"{log()} icon class -> '{value}'")
         elif val_type == ValtypeMap.INTEGER.value:
             if value:
-                xml_val_element = etree.Element("integer")
-                xml_val_element.text = value
+                val_element = etree.Element("integer")
+                val_element.text = value
                 csv_values[f"{counter}_value"] = value
+
+                if verbose:
+                    print(f"{log()} integer -> '{value}'")
         elif val_type == ValtypeMap.INTERVAL.value:
             if value:
-                xml_val_element = etree.Element("interval")
-                xml_val_element.text = value
+                val_element = etree.Element("interval")
+                val_element.text = value
                 csv_values[f"{counter}_value"] = value
+
+                if verbose:
+                    print(f"{log()} interval -> '{value}'")
         elif val_type == ValtypeMap.PERIOD.value:
-            xml_val_element = etree.Element("period")
-            csv_values[f"{counter}_value"] = value
-            # TODO What is this????
-            pass
+            if value:
+                val_element = etree.Element("period")
+                csv_values[f"{counter}_value"] = value
+
+                if verbose:
+                    print(f"{log()} period -> '{value}'")
         elif val_type == ValtypeMap.RESPTR.value:
             if value:
-                xml_val_element = etree.Element("resptr")
+                val_element = etree.Element("resptr")
                 # resource references have to start with the project name e.g. "webern_11111"
-                xml_val_element.text = f"{self.projectname}_{value}"
+                val_element.text = f"{self.projectname}_{value}"
                 csv_values[f"{counter}_value"] = f"{self.projectname}_{value}"
+
+                if verbose:
+                    print(f"{log()} resptr -> '{value}'")
         elif val_type == ValtypeMap.SELECTION.value:
             if value:
-                xml_val_element = etree.Element("list")
+                val_element = etree.Element("list")
                 # selection references have to start like "S_6615"
-                xml_val_element.text = f"S_{value}"
+                val_element.text = f"S_{value}"
                 csv_values[f"{counter}_value"] = f"S_{value}"
+
+                if verbose:
+                    print(f"{log()} list -> '{value}'")
         elif val_type == ValtypeMap.TIME.value:
             if value:
-                xml_val_element = etree.Element("time")
-                xml_val_element.text = value
+                val_element = etree.Element("time")
+                val_element.text = value
                 csv_values[f"{counter}_value"] = value
+
+                if verbose:
+                    print(f"{log()} time -> '{value}'")
         else:
-            print(f"Value type not found")
+            print(f"{warning()} Value type not found")
 
         # Adds the comment for the value
         if comment is not None:
-            xml_val_element.set("comment", comment)
+            val_element.set("comment", comment)
             csv_values[f"{counter}_comment"] = comment
 
             if verbose:
-                print(f"Comment for value: {comment}")
+                print(f"{log()} Comment for value: {comment}")
 
         # Adds default permission for property
-        if xml_val_element is not None:
-            xml_val_element.set("permissions", "prop-default")
+        if val_element is not None:
+            val_element.set("permissions", "prop-default")
             csv_values[f"{counter}_permissions"] = "prop-default"
 
-        return xml_val_element, csv_values
+        return val_element, csv_values
 
-    def process_property(self, prop_name: str, property: Dict, res_type_name: str, verbose: bool):
+    def process_property(self, prop_name: str, prop: Dict, res_type_name: str, verbose: bool):
         if prop_name == "__location__":
             return None, None
 
-        if property.get("values") is not None:
-            # first we strip the vocabulary off, if it's not salsah, dc, etc.
+        if prop.get("values") is not None:
+            # Strips off the vocabulary, if it's not salsah, dc, etc.
             tmp = prop_name.split(":")
-            new_prop_name: str = ""
+            new_prop_name: str
             if tmp[0] == self.vocabulary or tmp[0] == "dc":
                 # if the prop_name does not start with "has" or is, add it to the prop_name. We have to do this
                 # to avoid naming conflicts between resources and properties which share the same
@@ -1198,39 +1269,39 @@ class Salsah:
                 f"prop name": new_prop_name
             }
 
-            if int(property["valuetype_id"]) == ValtypeMap.SELECTION.value:
-                (dummy, list_id) = property["attributes"].split("=")
+            if int(prop["valuetype_id"]) == ValtypeMap.SELECTION.value:
+                (dummy, list_id) = prop["attributes"].split("=")
                 xml_prop["list"] = self.selection_mapping[list_id]
                 csv_prop["prop list"] = self.selection_mapping[list_id]
-            elif int(property["valuetype_id"]) == ValtypeMap.HLIST.value:
-                (dummy, list_id) = property["attributes"].split("=")
+            elif int(prop["valuetype_id"]) == ValtypeMap.HLIST.value:
+                (dummy, list_id) = prop["attributes"].split("=")
                 xml_prop["list"] = self.hlist_mapping[list_id]
                 csv_prop["prop list"] = self.hlist_mapping[list_id]
 
-            pname: str = ""
-            if Valtype.get(property["valuetype_id"]) == "richtext":
+            pname: str
+            if Valtype.get(prop["valuetype_id"]) == "richtext":
                 pname = "text-prop"
-            elif Valtype.get(property["valuetype_id"]) == "hlist":
+            elif Valtype.get(prop["valuetype_id"]) == "hlist":
                 pname = "list-prop"
-            elif Valtype.get(property["valuetype_id"]) == "selection":
+            elif Valtype.get(prop["valuetype_id"]) == "selection":
                 pname = "list-prop"
             else:
-                pname = Valtype.get(property["valuetype_id"]) + "-prop"
+                pname = Valtype.get(prop["valuetype_id"]) + "-prop"
 
-            # Creates xml element with property type
-            xml_prop_element = etree.Element(pname, xml_prop)
+            # Creates element with property type
+            prop_element = etree.Element(pname, xml_prop)
             # Adds the property type to the csv_prop
             csv_prop[f"prop type"] = pname
 
             cnt: int = 0
             value_counter = 0
-            for value in property["values"]:
+            for value in prop["values"]:
                 value_counter += 1
-                if property["comments"][cnt]:
-                    val_element, csv_value = self.process_value(int(property["valuetype_id"]), value, verbose,
-                                                                value_counter, property["comments"][cnt])
+                if prop["comments"][cnt]:
+                    val_element, csv_value = self.process_value(int(prop["valuetype_id"]), value, verbose,
+                                                                value_counter, prop["comments"][cnt])
                     if val_element is not None:
-                        xml_prop_element.append(val_element)
+                        prop_element.append(val_element)
                         cnt += 1
 
                     if csv_value is not None:
@@ -1238,10 +1309,10 @@ class Salsah:
                     else:
                         value_counter -= 1
                 else:
-                    val_element, csv_value = self.process_value(int(property["valuetype_id"]), value, verbose,
+                    val_element, csv_value = self.process_value(int(prop["valuetype_id"]), value, verbose,
                                                                 value_counter)
                     if val_element is not None:
-                        xml_prop_element.append(val_element)
+                        prop_element.append(val_element)
                         cnt += 1
 
                     if csv_value is not None:
@@ -1254,7 +1325,7 @@ class Salsah:
                 if max_values < value_counter:
                     max_values = value_counter
 
-                return xml_prop_element, csv_prop
+                return prop_element, csv_prop
             else:
                 return None, None
         else:
@@ -1264,7 +1335,7 @@ class Salsah:
         # Creates resource id and checks if was already added
         res_id = f"{self.projectname}_{resource['resdata']['res_id']}"
         if res_id in allResAdded:
-            return
+            return None, None
         else:
             allResAdded[res_id] = True
 
@@ -1291,7 +1362,7 @@ class Salsah:
             res_attributes["ark"] = resource["resinfo"].get("handle_id")
 
         # Creates xml element "resource" with the attributes
-        xml_res_element = etree.Element("resource", res_attributes)
+        res_element = etree.Element("resource", res_attributes)
 
         if resource["resinfo"].get("locdata") is not None:
             imag_path = os.path.join(self.images_path, resource["resinfo"]["locdata"]["origname"])
@@ -1307,7 +1378,7 @@ class Salsah:
             getter = f"{resource['resinfo']['locdata']['path']}&format={img_format}"
 
             if download:
-                print(f"Downloading {resource['resinfo']['locdata']['origname']}...")
+                print(f"{time()} Downloading {resource['resinfo']['locdata']['origname']}...")
                 dlfile2 = self.session.get(getter, stream=True)  # war urlretrieve()
 
                 with open(imag_path, "w+b") as fd:
@@ -1316,62 +1387,105 @@ class Salsah:
                     fd.close()
 
             # Creates xml element "bitstream" with the image path and appends to the "resource" element
-            xml_image_element = etree.Element("bitstream")
-            xml_image_element.text = imag_path
-            xml_res_element.append(xml_image_element)
+            image_element = etree.Element("bitstream")
+            image_element.text = imag_path
+            res_element.append(image_element)
 
             # Adds image path to the resource (later it can be added to the csv file)
             res_attributes["file"] = imag_path
 
-        self.csv_data.append(res_attributes)
+        # Creates list with res attributes
+        csv_res: List = [res_attributes]
 
         for prop_name in resource["props"]:
             prop_element, csv_prop = self.process_property(prop_name, resource["props"][prop_name], resource["resdata"]["restype_name"], verbose)
-            # Appends the prop element to the res element
-            if prop_element is not None:
-                xml_res_element.append(prop_element)
-            # Adds the prop attributes to the res attributes and increase the prop counter
-            if csv_prop is not None:
-                self.csv_data.append(csv_prop)
 
-        self.xml_root.append(xml_res_element)
+            # Skips iteration if no properties received
+            if prop_element is None or csv_prop is None:
+                continue
+
+            # Appends the prop element to the res element
+            res_element.append(prop_element)
+            # Adds the prop attributes to the res attributes
+            csv_res.append(csv_prop)
 
         if verbose:
-            print(f"Resource added. Id={resource['resdata']['res_id']}", flush=True)
+            print(f"{log()} resource ID={resource['resdata']['res_id']} added")
 
-    def get_xml_header(self):
-        # Prepare namespaces for XML root element
+        return res_element, csv_res
+
+    def get_data(self, project, nrows, start, download, verbose):
+        # Empty list for csv data initialized
+        csv_data: List = []
+        # Root element for xml data initialized
+        xml_data = self.get_root_element()
+
+        # Gets the amount of resources and all the resource ids
+        nhits, res_ids = self.get_all_obj_ids(project, nrows, start)
+
+        print(f"{time()} {nhits} nhits found")
+
+        # Gets all the resources of the project
+        resources = list(map(self.get_resource, res_ids))
+
+        # Processes through all the resources and saves them in the salsah object.
+        # Once in the xml_root for the xml file and once in the csv_data for the csv file
+        res_counter = 0
+        for resource in resources:
+            res_element, csv_res = self.process_resource(resource, download, verbose)
+
+            # Skips iteration if no resources received
+            if res_element is None or csv_data is None:
+                continue
+
+            # Appends the res element to the root element
+            xml_data.append(res_element)
+            # Concatenates the res (including props) with the existing data
+            csv_data = csv_data + csv_res
+
+            res_counter += 1
+
+            # Prints counter after every 1000th resources processed
+            if res_counter % 1000 == 0:
+                print(f"{time()} resource no. {res_counter} processed...")
+
+        return xml_data, csv_data
+
+    def get_root_element(self):
+        # Prepares namespaces for xml root element
         default_namespace = "https://dasch.swiss/schema"
         xsi_namespace = "http://www.w3.org/2001/XMLSchema-instance"
+
         nsmap: Dict = {
             None: default_namespace,
             "xsi": xsi_namespace,
         }
+
+        # Creates root element with namespaces
+        root_element = etree.Element("knora", nsmap=nsmap)
+
+        # Prepares xsi:schemaLocation
         xsi_schema_location_qname = etree.QName(xsi_namespace, "schemaLocation")
         xsi_schema_location_url = "https://dasch.swiss/schema https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/knora/dsplib/schemas/data.xsd"
 
-        # Create root element with namespaces for XML file
-        xml_root_element = etree.Element("knora", nsmap=nsmap)
+        # Adds xsi:schemaLocation, project shortcode and default ontology to root element
+        root_element.set(xsi_schema_location_qname, xsi_schema_location_url)
+        root_element.set("shortcode", self.shortcode)
+        root_element.set("default-ontology", self.vocabulary)
 
-        # Add xsi:schemaLocation attribute to root element of XML file
-        xml_root_element.set(xsi_schema_location_qname, xsi_schema_location_url)
-
-        # Add project shortcode to root element of XML file
-        xml_root_element.set("shortcode", self.shortcode)
-
-        # Add permission configurations
+        # Adds permission configurations
         for permission in self.permissions:
-            xml_root_element.append(self.permissions[permission])
+            root_element.append(self.permissions[permission])
 
-        return xml_root_element
+        return root_element
 
-    def write_to_xml(self):
+    def write_to_xml(self, data):
         xml_filename = f"{self.filename}.xml"
         f = open(xml_filename, "w")
-        f.write(etree.tostring(self.xml_root, pretty_print=True, xml_declaration=True, encoding="utf-8").decode("utf-8").replace("&lt;", "<").replace("&gt;", ">"))
+        f.write(etree.tostring(data, pretty_print=True, xml_declaration=True, encoding="utf-8").decode("utf-8").replace("&lt;", "<").replace("&gt;", ">"))
         f.close()
 
-    def write_to_csv(self):
+    def write_to_csv(self, data):
         row_headers = ["id", "restype", "label", "ark", "permissions", "file", "prop name", "prop type", "prop list"]
 
         global max_values
@@ -1386,12 +1500,12 @@ class Salsah:
         with open(csv_filename, "w", encoding="utf8", newline="") as f:
             writer = csv.DictWriter(f, delimiter=";", fieldnames=row_headers)
             writer.writeheader()
-            writer.writerows(self.csv_data)
+            writer.writerows(data)
 
 
 def param_project(args):
     if args.project is None:
-        print(f"You must give a shortname or ID of a project")
+        print(f"{error()} You must give a shortname or ID of a project")
         exit()
     else:
         return args.project
@@ -1407,12 +1521,12 @@ def param_shortcode(args):
             parts = line.split(",")
             if len(parts) > 1 and parts[1] == args.project:
                 shortcode = parts[0]
-                print(f"Found Knora project shortcode '{shortcode}' for '{parts[1]}'!")
+                print(f"{time()} Found Knora project shortcode '{shortcode}' for '{parts[1]}'!")
     else:
         shortcode = args.shortcode
 
     if shortcode is None:
-        print("You must give a shortcode ('--shortcode XXXX')!")
+        print(f"{error()} You must pass a shortcode ('--shortcode XXXX')!")
         exit()
 
     return shortcode
@@ -1423,7 +1537,7 @@ def param_credentials(args):
     pwd = args.password
 
     if user is None or pwd is None:
-        print("No user and password defined ('--user XXX --password YYYY)")
+        print(f"{error()} You must pass a user and password ('--user XXX --password YYYY)")
         exit()
 
     return user, pwd
@@ -1442,7 +1556,7 @@ def param_resptrs(args, parser):
                     props[prop.attrib["name"]] = prop.text.strip()
                 resptrs[restype_name] = props
         else:
-            print(f"No resources specified in given file: '{args.resptrs_file}'!")
+            print(f"{warning()} No resources specified in given file: '{args.resptrs_file}'!")
 
     return resptrs
 
@@ -1457,9 +1571,24 @@ def param_permissions(args, parser):
                 permission_name = permission.attrib["id"].strip()
                 permissions[permission_name] = permission
         else:
-            print(f"No permissions specified in given file: '{args.permissions_file}'!")
+            print(f"{warning()} No permissions specified in given file: '{args.permissions_file}'!")
 
     return permissions
+
+
+def get_ids_from_file(args):
+    if args.ids_file is not None:
+        try:
+            with open(args.ids_file) as ids_added:
+                return json.load(ids_added)
+        except ValueError:
+            print(f"{error()} File is not a JSON file or does not contain an object.")
+            exit()
+        except OSError:
+            print(f"{error()} Couldn't open {args.ids_file}. Check path file and try it again")
+            exit()
+    else:
+        return {}
 
 
 def program(args):
@@ -1509,71 +1638,75 @@ def program(args):
         if delete_existing.lower() == 'y':
             shutil.rmtree(folder)
         else:
-            print("Script is stopping")
+            print(f"{log()} Exit script")
             exit()
     try:
         os.mkdir(folder)
         os.mkdir(assets_path)
         os.mkdir(images_path)
     except OSError:
-        print("Couldn't create necessary folders")
+        print(f"{error()} Couldn't create necessary folders")
         exit()
 
     # Defines session
     session = requests.Session()
 
+    # Loads ids from file if parameter given
+    global allResAdded
+    allResAdded = get_ids_from_file(args)
+
     con = Salsah(server=args.server, user=user, password=password, filename=outfile_path,
                  assets_path=assets_path, images_path=images_path, projectname=args.project, shortcode=shortcode,
                  resptrs=resptrs, permissions=permissions, session=session)
 
-    global allResAdded
-    allResAdded = {}
+    ##########################
+    # ONTOLOGY related steps
+    ##########################
 
-    if args.ids_file is not None:
-        try:
-            with open(args.ids_file) as ids_added:
-                allResAdded = json.load(ids_added)
-        except ValueError:
-            print("Error: File is not a JSON file or does not contain an object.")
-            exit()
-        except OSError:
-            print(f"Error: Couldn't open {args.ids_file}. Check path file and try it again")
-            exit()
+    print(f"{time()} Starting 'Collect ontology'...")
 
+    # Gets the ontology of the project and stores it
     ontology = con.get_ontology()
-    # ontology["project"]["ontologies"].update({"resources": con.get_resourcetypes_of_vocabulary(ontology["project"]["shortname"], session)})
+
+    print(f"{time()} Finished 'Collect ontology'")
 
     # Writes the ontology to a json file
     con.write_to_json(ontology)
 
-    # Gets the amount of resources and all the resource ids
-    nhits, res_ids = con.get_all_obj_ids(project, nrows, start)
-    print(f"nhits={nhits}")
+    print(f"{time()} {success()} Ontology JSON file created")
 
-    # Gets all the resources of the project
-    resources = list(map(con.get_resource, res_ids))
+    ########################
+    # DATA related stuff
+    ########################
 
-    # Processes through all the resources and saves them in the salsah object.
-    # Once in the xml_root for the xml file and once in the csv_data for the csv file
-    res_counter = 0
-    for resource in resources:
-        con.process_resource(resource, download, verbose)
-        res_counter += 1
+    print(f"{time()} Starting 'Collect data'...")
 
-        if verbose and res_counter % 1000 == 0:
-            print(f"Res no. {res_counter} processed")
+    # Gets the data of the project and stores it
+    xml_data, csv_data = con.get_data(project, nrows, start, download, verbose)
+
+    print(f"{time()} Finished 'Collect data'")
 
     # Writes all the data from xml_root to a xml file
-    con.write_to_xml()
+    con.write_to_xml(xml_data)
+
+    print(f"{time()} {success()} Data XML file created")
+
     # Writes all the data from csv_data to a csv file
-    con.write_to_csv()
+    con.write_to_csv(csv_data)
+
+    print(f"{time()} {success()} Data CSV file created")
 
     # Writes all the resource ids to a json file. So it can be used for further imports without having duplicates ids.
     save(f"{con.projectname}-all_ids.json", allResAdded)
 
+    print(f"{time()} File with all ID's created (root folder)")
+
     # Writes all the resources to a json file (for debugging purposes only, it is not recommended using it for more
     # than 1'000 resources otherwise the file will get very big)
     # save(con.filename + "_all_resources.json", {"resources": resources})
+
+    print(f"=====================================================")
+    print(f"Ontology and data files are stored in '{folder}'\n")
 
 
 def main():
