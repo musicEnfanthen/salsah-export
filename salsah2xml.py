@@ -613,7 +613,10 @@ class Salsah:
                     knora_object = "TextValue"
             elif property["vocabulary"] == "dc":
                 knora_super = ["hasValue", "dc:" + property["name"] if property["name"] != "description_rt" else "dc:description"]
-                knora_object = "TextValue"
+                if property["name"] == "date":
+                    knora_object = "DateValue"
+                else:
+                    knora_object = "TextValue"
             elif property["vocabulary"] == vocname:
                 if property["vt_php_constant"] == "VALTYPE_TEXT":
                     knora_super = ["hasValue"]
