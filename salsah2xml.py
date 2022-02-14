@@ -1660,6 +1660,8 @@ def program(args):
 
     # Defines session
     session = requests.Session()
+    # Skips verification (Use it only for local requests)
+    session.verify = False
 
     # Loads ids from file if parameter given
     global allResAdded
