@@ -1,0 +1,5 @@
+<resptres vocabulary="sgv">
+    <resource name="sgv:image">
+        <property name="salsah:part_of">sgv:album</property>
+    </resource>
+</resptres>

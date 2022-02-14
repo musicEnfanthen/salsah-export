@@ -999,19 +999,29 @@ class Salsah:
             "reqtype": "info"
         }
         res_url = f"{self.server}/api/resources/{res_id}"
-        req = self.session.get(res_url, params=payload, auth=(self.user, self.password))
-        result = req.json()
-        if result["status"] != 0:
-            raise SalsahError("SALSAH-ERROR:\n" + result["errormsg"])
-        firstproperty = result["resource_info"]["firstproperty"]
 
-        req = self.session.get(res_url, auth=(self.user, self.password))
-        result = req.json()
-        if result["status"] != 0:
-            raise SalsahError("SALSAH-ERROR:\n" + result["errormsg"])
-        result["firstproperty"] = firstproperty
+        try:
+            req = self.session.get(res_url, params=payload, auth=(self.user, self.password))
+            result = req.json()
 
-        return result
+            if result["status"] != 0:
+                raise SalsahError("SALSAH-ERROR:\n" + result["errormsg"])
+
+            firstproperty = result["resource_info"]["firstproperty"]
+
+            req = self.session.get(res_url, auth=(self.user, self.password))
+            result = req.json()
+
+            if result["status"] != 0:
+                raise SalsahError("SALSAH-ERROR:\n" + result["errormsg"])
+
+            result["firstproperty"] = firstproperty
+
+            return result
+
+        except Exception as e:
+            print(f"{time()} {error()} res id {res_id} Message {e}")
+            exit()
 
     def write_to_json(self, proj: Dict):
         """
@@ -1650,6 +1660,8 @@ def program(args):
 
     # Defines session
     session = requests.Session()
+    # Skips verification (Use it only for local requests)
+    session.verify = False
 
     # Loads ids from file if parameter given
     global allResAdded
